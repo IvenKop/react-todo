@@ -1,35 +1,57 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+import type { Todo, Filter } from './types';
+import { getTodos, setTodos, getFilter, setFilter } from './utils/storage';
+import { genId } from './utils/id';
+
+import Header from './components/Header';
+import InputBox from './components/InputBox';
+
+export default function App() {
+  const [todos, setTodosState] = useState<Todo[]>(() => getTodos());
+  const [filter, setFilterState] = useState<Filter>(() => getFilter());
+
+  useEffect(() => {
+    setTodos(todos);
+  }, [todos]);
+
+  useEffect(() => {
+    setFilter(filter);
+  }, [filter]);
+
+  const handleAdd = (text: string) => {
+    setTodosState((prev) => [
+      ...prev,
+      { id: genId(), text, completed: false },
+    ]);
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <div className="body-page">
+      <Header />
 
-export default App
+      <main className="main-page">
+          <InputBox onAdd={handleAdd} />
+
+          {todos.length === 0 ? (
+            <p style={{ textAlign: 'center', color: '#6b6b6b', marginTop: 16 }}>
+              No tasks
+            </p>
+          ) : (
+            <p style={{ textAlign: 'center', color: '#6b6b6b', marginTop: 16 }}>
+              Tasks total: {todos.length}
+            </p>
+          )}
+      </main>
+
+      <footer className="footer-page">
+        <p className="footer-page_advice">Double-click to edit</p>
+        <p className="footer-page__team-name">Created by the Devico Solution</p>
+        <p className="footer-page__part">
+          part of <span className="footer-page__span">Devico</span>
+        </p>
+      </footer>
+    </div>
+  );
+}
