@@ -1,35 +1,37 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useEffect, useState } from "react";
 
-function App() {
-  const [count, setCount] = useState(0)
+import type { Todo} from "./types";
+import { getTodos} from "./utils/storage";
+import { genId } from "./utils/id";
+
+import Header from "./components/Header";
+import InputBox from "./components/InputBox";
+import Footer from "./components/Footer";
+
+export default function App() {
+  const [todos, setTodos] = useState<Todo[]>(() => getTodos());
+
+  const handleAdd = (text: string) => {
+    setTodos((prev) => [...prev, { id: genId(), text, completed: false }]);
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <div className="min-h-screen">
+      <Header />
 
-export default App
+      <main>
+        <div className="w-[90%] max-w-[550px] mx-auto mt-2 bg-transparent shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)] pb-3">
+          <InputBox onAdd={handleAdd} />
+
+          <p className="text-center text-[#6b6b6b] mt-4">
+            {todos.length === 0
+              ? "No tasks yet — add your first one 👆"
+              : `Tasks total: ${todos.length}`}
+          </p>
+        </div>
+      </main>
+
+      <Footer />
+    </div>
+  );
+}
