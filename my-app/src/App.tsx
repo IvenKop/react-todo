@@ -1,57 +1,45 @@
-import { useEffect, useState } from 'react';
-import './App.css';
+import { useEffect, useState } from "react";
 
-import type { Todo, Filter } from './types';
-import { getTodos, setTodos, getFilter, setFilter } from './utils/storage';
-import { genId } from './utils/id';
+import type { Todo, Filter } from "./types";
+import { getTodos, saveTodos, getFilter, saveFilter } from "./utils/storage";
+import { genId } from "./utils/id";
 
-import Header from './components/Header';
-import InputBox from './components/InputBox';
+import Header from "./components/Header";
+import InputBox from "./components/InputBox";
+import Footer from "./components/Footer";
 
 export default function App() {
-  const [todos, setTodosState] = useState<Todo[]>(() => getTodos());
-  const [filter, setFilterState] = useState<Filter>(() => getFilter());
+  const [todos, setTodos] = useState<Todo[]>(() => getTodos());
+  const [activeFilter, setActiveFilter] = useState<Filter>(() => getFilter());
 
   useEffect(() => {
-    setTodos(todos);
+    saveTodos(todos);
   }, [todos]);
-
   useEffect(() => {
-    setFilter(filter);
-  }, [filter]);
+    saveFilter(activeFilter);
+  }, [activeFilter]);
 
   const handleAdd = (text: string) => {
-    setTodosState((prev) => [
-      ...prev,
-      { id: genId(), text, completed: false },
-    ]);
+    setTodos((prev) => [...prev, { id: genId(), text, completed: false }]);
   };
 
   return (
-    <div className="body-page">
+    <div className="min-h-screen">
       <Header />
 
-      <main className="main-page">
+      <main>
+        <div className="w-[90%] max-w-[550px] mx-auto mt-2 bg-transparent shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)] pb-3">
           <InputBox onAdd={handleAdd} />
 
-          {todos.length === 0 ? (
-            <p style={{ textAlign: 'center', color: '#6b6b6b', marginTop: 16 }}>
-              No tasks
-            </p>
-          ) : (
-            <p style={{ textAlign: 'center', color: '#6b6b6b', marginTop: 16 }}>
-              Tasks total: {todos.length}
-            </p>
-          )}
+          <p className="text-center text-[#6b6b6b] mt-4">
+            {todos.length === 0
+              ? "No tasks yet — add your first one 👆"
+              : `Tasks total: ${todos.length}`}
+          </p>
+        </div>
       </main>
 
-      <footer className="footer-page">
-        <p className="footer-page_advice">Double-click to edit</p>
-        <p className="footer-page__team-name">Created by the Devico Solution</p>
-        <p className="footer-page__part">
-          part of <span className="footer-page__span">Devico</span>
-        </p>
-      </footer>
+      <Footer />
     </div>
   );
 }

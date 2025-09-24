@@ -1,3 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Helvetica Neue Custom";
+  src: url("/fonts/HelveticaNeueThin.otf") format("opentype");
+  font-weight: 200;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Helvetica Neue Custom";
+  src: url("/fonts/HelveticaNeueRoman.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Helvetica Neue Custom";
+  src: url("/fonts/HelveticaNeueUltraLight.otf") format("opentype");
+  font-weight: 100;
+  font-style: normal;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -7,15 +30,17 @@ body,
   height: 100%;
 }
 
-body {
-  margin: 0;
-  background: #f5f5f5;
-  color: #222;
+@layer base {
+  body {
+    font-family: "Helvetica Neue Custom", sans-serif;
+    font-weight: 200;
+    background-color: #f5f5f5;
+    margin: 0;
+  }
 }
 
-#root {
-  width: 100%;
-  max-width: none;
-  padding: 0;
-  margin: 0;
+@layer utilities {
+  .is-hidden {
+    @apply hidden;
+  }
 }
