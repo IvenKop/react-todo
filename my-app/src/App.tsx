@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-import type { Todo, Filter } from "./types";
-import { getTodos, saveTodos, getFilter, saveFilter } from "./utils/storage";
+import { useState } from "react";
+import type { Todo } from "./types";
+import { getTodos, } from "./utils/storage";
 import { genId } from "./utils/id";
 
 import Header from "./components/Header";
@@ -10,10 +10,6 @@ import Footer from "./components/Footer";
 
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>(() => getTodos());
-  const [activeFilter, setActiveFilter] = useState<Filter>(() => getFilter());
-
-  useEffect(() => { saveTodos(todos); }, [todos]);
-  useEffect(() => { saveFilter(activeFilter); }, [activeFilter]);
 
   const handleAdd = (text: string) => {
     setTodos(prev => [...prev, { id: genId(), text, completed: false }]);
