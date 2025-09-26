@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import clsx from "clsx";
 import type { Todo } from "../types";
 
 type Props = {
@@ -36,40 +37,61 @@ function TaskItem({
   onDelete: (id: string) => void;
   onEdit: (id: string, text: string) => void;
 }) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(todo.text);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedText, setEditedText] = useState(todo.text);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (editing) {
-      inputRef.current?.focus();
-      const v = inputRef.current!.value;
-      inputRef.current!.setSelectionRange(v.length, v.length);
-    }
-  }, [editing]);
+    if (!isEditing) return;
+    inputRef.current?.focus();
+    const v = inputRef.current!.value;
+    inputRef.current!.setSelectionRange(v.length, v.length);
+  }, [isEditing]);
 
-  const finish = (commit: boolean) => {
-    const next = draft.trim();
-    if (commit && next && next !== todo.text) onEdit(todo.id, next);
-    else setDraft(todo.text);
-    setEditing(false);
-  };
+  const onEditFinished = useCallback(
+    (commit: boolean) => {
+      const next = editedText.trim();
+      if (commit && next && next !== todo.text) {
+        onEdit(todo.id, next);
+      } else {
+        setEditedText(todo.text);
+      }
+      setIsEditing(false);
+    },
+    [editedText, onEdit, todo.id, todo.text]
+  );
+
+  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest('button[aria-label="Delete todo"]')) return;
+    if (!isEditing) setIsEditing(true);
+  }, [isEditing]);
+
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditedText(e.target.value);
+  }, []);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") onEditFinished(true);
+    else if (e.key === "Escape") onEditFinished(false);
+  }, [onEditFinished]);
+
+  const handleBlur = useCallback(() => {
+    onEditFinished(true);
+  }, [onEditFinished]);
+
+  const handleDeleteClick = useCallback(() => {
+    onDelete(todo.id);
+  }, [onDelete, todo.id]);
 
   return (
     <li
-      className={[
+      className={clsx(
         "group relative p-[16px] pl-[60px] pr-[76px] text-[24px] leading-[1.4] border-b border-[#c3c3c3] z-[2]",
-        editing ? "outline outline-1 outline-[#b83f45]" : "",
-      ].join(" ")}
-      onDoubleClick={(e) => {
-        if (
-          (e.target as HTMLElement).closest('button[aria-label="Delete todo"]')
-        )
-          return;
-        if (!editing) setEditing(true);
-      }}
+        isEditing && "outline outline-1 outline-[#b83f45]"
+      )}
+      onDoubleClick={handleDoubleClick}
     >
-      {!editing ? (
+      {!isEditing ? (
         <span className="block max-w-full break-words whitespace-normal">
           {todo.text}
         </span>
@@ -77,18 +99,15 @@ function TaskItem({
         <input
           ref={inputRef}
           type="text"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") finish(true);
-            else if (e.key === "Escape") finish(false);
-          }}
-          onBlur={() => finish(true)}
+          value={editedText}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onBlur={handleBlur}
           className="
-        block w-full box-border
-        bg-transparent border-0 outline-none focus:ring-0
-        p-0 m-0 text-[24px] leading-[1.4]
-      "
+            block w-full box-border
+            bg-transparent border-0 outline-none focus:ring-0
+            p-0 m-0 text-[24px] leading-[1.4]
+          "
         />
       )}
 
@@ -96,16 +115,16 @@ function TaskItem({
         type="button"
         aria-label="Delete todo"
         title="Delete"
-        onClick={() => onDelete(todo.id)}
+        onClick={handleDeleteClick}
         className="
-      group/delete absolute right-[10px] top-1/2 -translate-y-1/2
-    w-[45px] h-[45px] border border-transparent bg-transparent cursor-pointer appearance-none
-    opacity-0 pointer-events-none transition-[opacity,border-color,background-color,box-shadow] duration-150
-    group-hover:opacity-100 group-hover:pointer-events-auto
-    focus-visible:opacity-100 focus-visible:pointer-events-auto
-    focus-visible:border-[#b83f45] focus-visible:shadow-[0_0_0_2px_rgba(184,63,69,0.12)]
-    active:border-[#b83f45] active:shadow-[0_0_0_2px_rgba(184,63,69,0.12)]
-    "
+          group/delete absolute right-[10px] top-1/2 -translate-y-1/2
+          w-[45px] h-[45px] border border-transparent bg-transparent cursor-pointer appearance-none
+          opacity-0 pointer-events-none transition-[opacity,border-color,background-color,box-shadow] duration-150
+          group-hover:opacity-100 group-hover:pointer-events-auto
+          focus-visible:opacity-100 focus-visible:pointer-events-auto
+          focus-visible:border-[#b83f45] focus-visible:shadow-[0_0_0_2px_rgba(184,63,69,0.12)]
+          active:border-[#b83f45] active:shadow-[0_0_0_2px_rgba(184,63,69,0.12)]
+        "
       >
         <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 block w-[25px] h-[2px] bg-[#bfbfbf] rounded-[1px] rotate-45 transition-colors duration-150 group-hover/delete:bg-[#bd8787]" />
         <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 block w-[25px] h-[2px] bg-[#bfbfbf] rounded-[1px] -rotate-45 transition-colors duration-150 group-hover/delete:bg-[#bd8787]" />
