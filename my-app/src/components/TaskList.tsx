@@ -6,9 +6,10 @@ type Props = {
   todos: Todo[];
   onDelete: (id: string) => void;
   onEdit: (id: string, text: string) => void;
+  onToggle: (id: string) => void;
 };
 
-export default function TaskList({ todos, onDelete, onEdit }: Props) {
+export default function TaskList({ todos, onDelete, onEdit, onToggle }: Props) {
   if (todos.length === 0) return null;
 
   return (
@@ -22,7 +23,13 @@ export default function TaskList({ todos, onDelete, onEdit }: Props) {
       "
     >
       {todos.map((t) => (
-        <TaskItem key={t.id} todo={t} onDelete={onDelete} onEdit={onEdit} />
+        <TaskItem
+          key={t.id}
+          todo={t}
+          onDelete={onDelete}
+          onEdit={onEdit}
+          onToggle={onToggle}
+        />
       ))}
     </ul>
   );
@@ -32,10 +39,12 @@ function TaskItem({
   todo,
   onDelete,
   onEdit,
+  onToggle,
 }: {
   todo: Todo;
   onDelete: (id: string) => void;
   onEdit: (id: string, text: string) => void;
+  onToggle: (id: string) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedText, setEditedText] = useState(todo.text);
@@ -61,19 +70,26 @@ function TaskItem({
     [editedText, onEdit, todo.id, todo.text]
   );
 
-  const handleDoubleClick = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('button[aria-label="Delete todo"]')) return;
-    if (!isEditing) setIsEditing(true);
-  }, [isEditing]);
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if ((e.target as HTMLElement).closest('button[aria-label="Delete todo"]'))
+        return;
+      if (!isEditing) setIsEditing(true);
+    },
+    [isEditing]
+  );
 
   const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setEditedText(e.target.value);
   }, []);
 
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") onEditFinished(true);
-    else if (e.key === "Escape") onEditFinished(false);
-  }, [onEditFinished]);
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") onEditFinished(true);
+      else if (e.key === "Escape") onEditFinished(false);
+    },
+    [onEditFinished]
+  );
 
   const handleBlur = useCallback(() => {
     onEditFinished(true);
@@ -83,6 +99,10 @@ function TaskItem({
     onDelete(todo.id);
   }, [onDelete, todo.id]);
 
+  const handleToggleClick = useCallback(() => {
+    onToggle(todo.id);
+  }, [onToggle, todo.id]);
+
   return (
     <li
       className={clsx(
@@ -91,8 +111,42 @@ function TaskItem({
       )}
       onDoubleClick={handleDoubleClick}
     >
+      {!isEditing && (
+        <button
+          type="button"
+          aria-label="Toggle completed"
+          aria-pressed={todo.completed}
+          onClick={handleToggleClick}
+          className={clsx(
+            "absolute left-[10px] top-1/2 -translate-y-1/2 w-[28px] h-[28px] rounded-full",
+            "border-2 border-[#dcdcdc] bg-transparent cursor-pointer appearance-none",
+            "transition-[border-color,background-color,box-shadow] duration-[150ms]",
+            "hover:border-[#bfbfbf] hover:bg-[rgba(0,0,0,0.02)]",
+            "focus-visible:outline-none focus-visible:shadow-[0_0_0_2px_rgba(0,0,0,0.08)]",
+            todo.completed && "border-[#59a193] bg-[#59a193]"
+          )}
+        >
+          <span
+            className={clsx(
+              "absolute left-1/2 top-1/2",
+              "block w-[12px] h-[7px] border-l-2 border-b-2",
+              "transform -translate-x-1/2 -translate-y-[60%] -rotate-45",
+              "transition-[opacity,border-color] duration-[150ms]",
+              todo.completed
+                ? "opacity-100 border-[#59a193]"
+                : "opacity-0 border-transparent"
+            )}
+          />
+        </button>
+      )}
+
       {!isEditing ? (
-        <span className="block max-w-full break-words whitespace-normal">
+        <span
+          className={clsx(
+            "block max-w-full break-words whitespace-normal",
+            todo.completed && "text-[#9b9b9b] line-through"
+          )}
+        >
           {todo.text}
         </span>
       ) : (
@@ -111,24 +165,26 @@ function TaskItem({
         />
       )}
 
-      <button
-        type="button"
-        aria-label="Delete todo"
-        title="Delete"
-        onClick={handleDeleteClick}
-        className="
-          group/delete absolute right-[10px] top-1/2 -translate-y-1/2
-          w-[45px] h-[45px] border border-transparent bg-transparent cursor-pointer appearance-none
-          opacity-0 pointer-events-none transition-[opacity,border-color,background-color,box-shadow] duration-150
-          group-hover:opacity-100 group-hover:pointer-events-auto
-          focus-visible:opacity-100 focus-visible:pointer-events-auto
-          focus-visible:border-[#b83f45] focus-visible:shadow-[0_0_0_2px_rgba(184,63,69,0.12)]
-          active:border-[#b83f45] active:shadow-[0_0_0_2px_rgba(184,63,69,0.12)]
-        "
-      >
-        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 block w-[25px] h-[2px] bg-[#bfbfbf] rounded-[1px] rotate-45 transition-colors duration-150 group-hover/delete:bg-[#bd8787]" />
-        <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 block w-[25px] h-[2px] bg-[#bfbfbf] rounded-[1px] -rotate-45 transition-colors duration-150 group-hover/delete:bg-[#bd8787]" />
-      </button>
+      {!isEditing && (
+        <button
+          type="button"
+          aria-label="Delete todo"
+          title="Delete"
+          onClick={handleDeleteClick}
+          className="
+            group/delete absolute right-[10px] top-1/2 -translate-y-1/2
+            w-[45px] h-[45px] border border-transparent bg-transparent cursor-pointer appearance-none
+            opacity-0 pointer-events-none transition-[opacity,border-color,background-color,box-shadow] duration-150
+            group-hover:opacity-100 group-hover:pointer-events-auto
+            focus-visible:opacity-100 focus-visible:pointer-events-auto
+            focus-visible:border-[#b83f45] focus-visible:shadow-[0_0_0_2px_rgba(184,63,69,0.12)]
+            active:border-[#b83f45] active:shadow-[0_0_0_2px_rgba(184,63,69,0.12)]
+          "
+        >
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 block w-[25px] h-[2px] bg-[#bfbfbf] rounded-[1px] rotate-45 transition-colors duration-150 group-hover/delete:bg-[#bd8787]" />
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 block w-[25px] h-[2px] bg-[#bfbfbf] rounded-[1px] -rotate-45 transition-colors duration-150 group-hover/delete:bg-[#bd8787]" />
+        </button>
+      )}
     </li>
   );
 }
