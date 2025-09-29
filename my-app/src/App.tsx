@@ -32,13 +32,28 @@ export default function App() {
       prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)),
     );
   }, []);
+  const showToggleAll = todos.length > 0;
+  const toggleAllChecked = showToggleAll && todos.every((t) => t.completed);
+
+  const handleToggleAll = useCallback(() => {
+    setTodos((prev) => {
+      const allDone = prev.length > 0 && prev.every((t) => t.completed);
+      const makeCompleted = !allDone;
+      return prev.map((t) => ({ ...t, completed: makeCompleted }));
+    });
+  }, []);
 
   return (
     <div className="min-h-screen">
       <Header />
       <main>
         <div className="mx-auto w-[90%] max-w-[550px] bg-white shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)]">
-          <InputBox onAdd={handleAdd} />
+          <InputBox
+            onAdd={handleAdd}
+            showToggleAll={showToggleAll}
+            toggleAllChecked={toggleAllChecked}
+            onToggleAll={handleToggleAll}
+          />
           <TaskList
             todos={todos}
             onDelete={handleDelete}
