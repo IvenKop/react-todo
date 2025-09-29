@@ -11,29 +11,33 @@ import Footer from "./components/Footer";
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>(() => getTodos());
 
-  useEffect(() => { saveTodos(todos); }, [todos]);
+  useEffect(() => {
+    saveTodos(todos);
+  }, [todos]);
 
   const handleAdd = useCallback((text: string) => {
-    setTodos(prev => [...prev, { id: genId(), text, completed: false }]);
+    setTodos((prev) => [...prev, { id: genId(), text, completed: false }]);
   }, []);
 
   const handleDelete = useCallback((id: string) => {
-    setTodos(prev => prev.filter(t => t.id !== id));
+    setTodos((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
   const handleEdit = useCallback((id: string, text: string) => {
-    setTodos(prev => prev.map(t => (t.id === id ? { ...t, text } : t)));
+    setTodos((prev) => prev.map((t) => (t.id === id ? { ...t, text } : t)));
   }, []);
 
   const handleToggle = useCallback((id: string) => {
-    setTodos(prev => prev.map(t => (t.id === id ? { ...t, completed: !t.completed } : t)));
+    setTodos((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)),
+    );
   }, []);
 
   return (
     <div className="min-h-screen">
       <Header />
       <main>
-        <div className="w-[90%] max-w-[550px] mx-auto bg-white shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)]">
+        <div className="mx-auto w-[90%] max-w-[550px] bg-white shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)]">
           <InputBox onAdd={handleAdd} />
           <TaskList
             todos={todos}

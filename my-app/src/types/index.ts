@@ -1,4 +1,4 @@
-export type Filter = 'all' | 'active' | 'completed';
+export type Filter = "all" | "active" | "completed";
 
 export type Todo = {
   id: string;
@@ -6,5 +6,5 @@ export type Todo = {
   completed: boolean;
 };
 
-export const STORAGE_KEY = 'todos-simple';
-export const FILTER_KEY = 'todos-filter';
+export const STORAGE_KEY = "todos-simple";
+export const FILTER_KEY = "todos-filter";
