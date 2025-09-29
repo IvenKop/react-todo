@@ -4,7 +4,7 @@ import { getTodos, saveTodos } from "./utils/storage";
 import { genId } from "./utils/id";
 
 import Header from "./components/Header";
-import InputBox from "./components/InputBox";
+import TaskInput from "./components/TaskInput";
 import TaskList from "./components/TaskList";
 import Footer from "./components/Footer";
 
@@ -32,8 +32,8 @@ export default function App() {
       prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)),
     );
   }, []);
-  const showToggleAll = todos.length > 0;
-  const toggleAllChecked = showToggleAll && todos.every((t) => t.completed);
+  const isListEmpty = todos.length > 0;
+  const isAllSelected = isListEmpty && todos.every((t) => t.completed);
 
   const handleToggleAll = useCallback(() => {
     setTodos((prev) => {
@@ -48,10 +48,10 @@ export default function App() {
       <Header />
       <main>
         <div className="mx-auto w-[90%] max-w-[550px] bg-white shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)]">
-          <InputBox
+          <TaskInput
             onAdd={handleAdd}
-            showToggleAll={showToggleAll}
-            toggleAllChecked={toggleAllChecked}
+            isListEmpty={isListEmpty}
+            isAllSelected={isAllSelected}
             onToggleAll={handleToggleAll}
           />
           <TaskList
