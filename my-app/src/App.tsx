@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Todo } from "./types";
-import { getTodos, saveTodos } from "./utils/storage";
+import type { Todo, Filter } from "./types";
+import { getTodos, saveTodos, getFilter, saveFilter } from "./utils/storage";
 import { genId } from "./utils/id";
-import InfoMenu from "./components/InfoMenu";
-import type { Filter } from "./types";
-import { getFilter, saveFilter } from "./utils/storage";
 
+import InfoMenu from "./components/InfoMenu";
 import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
 import TaskList from "./components/TaskList";
