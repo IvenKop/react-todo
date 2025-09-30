@@ -11,9 +11,10 @@ export function saveTodos(next: Todo[]): void {
 }
 
 export function getFilter(): Filter {
-  return (localStorage.getItem(FILTER_KEY) as Filter) ?? 'all';
+  const f = localStorage.getItem(FILTER_KEY);
+  return f === "active" || f === "completed" ? (f as Filter) : "all";
 }
 
-export function saveFilter(f: Filter): void {
+export function saveFilter(f: Filter) {
   localStorage.setItem(FILTER_KEY, f);
 }

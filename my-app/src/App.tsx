@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from "react";
 import type { Todo } from "./types";
 import { getTodos, saveTodos } from "./utils/storage";
 import { genId } from "./utils/id";
+import InfoMenu from "./components/InfoMenu";
+import type { Filter } from "./types";
+import { getFilter, saveFilter } from "./utils/storage";
 
 import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
@@ -10,6 +13,24 @@ import Footer from "./components/Footer";
 
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>(() => getTodos());
+
+  const [filter, setFilter] = useState<Filter>(() => getFilter());
+  useEffect(() => {
+    saveFilter(filter);
+  }, [filter]);
+
+  const activeCount = todos.filter((t) => !t.completed).length;
+
+  const visibleTodos =
+    filter === "active"
+      ? todos.filter((t) => !t.completed)
+      : filter === "completed"
+        ? todos.filter((t) => t.completed)
+        : todos;
+
+  const handleClearCompleted = useCallback(() => {
+    setTodos((prev) => prev.filter((t) => !t.completed));
+  }, []);
 
   useEffect(() => {
     saveTodos(todos);
@@ -55,11 +76,20 @@ export default function App() {
             onToggleAll={handleToggleAll}
           />
           <TaskList
-            todos={todos}
+            todos={visibleTodos}
             onDelete={handleDelete}
             onEdit={handleEdit}
             onToggle={handleToggle}
           />
+
+          {todos.length > 0 && (
+            <InfoMenu
+              activeCount={activeCount}
+              filter={filter}
+              onSetFilter={setFilter}
+              onClearCompleted={handleClearCompleted}
+            />
+          )}
         </div>
       </main>
       <Footer />
