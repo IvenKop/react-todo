@@ -1,10 +1,10 @@
 import clsx from "clsx";
-import type { Filter } from "../types/index";
+import type { Filter } from "../types";
 
 type Props = {
   activeCount: number;
   filter: Filter;
-  onSetFilter: (f: Filter) => void;
+  setFilter: React.Dispatch<React.SetStateAction<Filter>>;
   onClearCompleted: () => void;
 };
 
@@ -15,7 +15,7 @@ function pluralize(n: number) {
 export default function InfoMenu({
   activeCount,
   filter,
-  onSetFilter,
+  setFilter,
   onClearCompleted,
 }: Props) {
   return (
@@ -31,7 +31,7 @@ export default function InfoMenu({
         <button
           type="button"
           aria-pressed={filter === "all"}
-          onClick={() => onSetFilter("all")}
+          onClick={() => setFilter("all")}
           className={clsx(
             "cursor-pointer rounded border border-transparent bg-transparent px-2 py-[3px] text-[#6b6b6b] transition-[border-color,color,background-color] duration-150",
             "hover:border-[#b83f45]",
@@ -44,7 +44,7 @@ export default function InfoMenu({
         <button
           type="button"
           aria-pressed={filter === "active"}
-          onClick={() => onSetFilter("active")}
+          onClick={() => setFilter("active")}
           className={clsx(
             "cursor-pointer rounded border border-transparent bg-transparent px-2 py-[3px] text-[#6b6b6b] transition-[border-color,color,background-color] duration-150",
             "hover:border-[#b83f45]",
@@ -57,7 +57,7 @@ export default function InfoMenu({
         <button
           type="button"
           aria-pressed={filter === "completed"}
-          onClick={() => onSetFilter("completed")}
+          onClick={() => setFilter("completed")}
           className={clsx(
             "cursor-pointer rounded border border-transparent bg-transparent px-2 py-[3px] text-[#6b6b6b] transition-[border-color,color,background-color] duration-150",
             "hover:border-[#b83f45]",

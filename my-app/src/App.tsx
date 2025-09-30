@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Todo, Filter } from "./types";
 import { getTodos, saveTodos, getFilter, saveFilter } from "./utils/storage";
 import { genId } from "./utils/id";
@@ -12,19 +12,35 @@ import Footer from "./components/Footer";
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>(() => getTodos());
 
-  const [filter, setFilter] = useState<Filter>(() => getFilter());
-  useEffect(() => {
-    saveFilter(filter);
-  }, [filter]);
+  const [activeFilter, setActiveFilter] = useState<Filter>(() => getFilter());
 
-  const activeCount = todos.filter((t) => !t.completed).length;
+  const setFilter = useCallback<React.Dispatch<React.SetStateAction<Filter>>>(
+    (action) => {
+      setActiveFilter((prev) => {
+        const next =
+          typeof action === "function"
+            ? (action as (p: Filter) => Filter)(prev)
+            : action;
+        saveFilter(next);
+        return next;
+      });
+    },
+    [],
+  );
 
-  const visibleTodos =
-    filter === "active"
+  const visibleTodos = useMemo(() => {
+    return activeFilter === "active"
       ? todos.filter((t) => !t.completed)
-      : filter === "completed"
+      : activeFilter === "completed"
         ? todos.filter((t) => t.completed)
         : todos;
+  }, [todos, activeFilter]);
+
+  const activeCount = useMemo(() => {
+    return activeFilter === "active"
+      ? visibleTodos.length
+      : todos.filter((t) => !t.completed).length;
+  }, [activeFilter, visibleTodos.length, todos]);
 
   const handleClearCompleted = useCallback(() => {
     setTodos((prev) => prev.filter((t) => !t.completed));
@@ -51,6 +67,7 @@ export default function App() {
       prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)),
     );
   }, []);
+
   const isListEmpty = todos.length > 0;
   const isAllSelected = isListEmpty && todos.every((t) => t.completed);
 
@@ -83,8 +100,8 @@ export default function App() {
           {todos.length > 0 && (
             <InfoMenu
               activeCount={activeCount}
-              filter={filter}
-              onSetFilter={setFilter}
+              filter={activeFilter}
+              setFilter={setFilter}
               onClearCompleted={handleClearCompleted}
             />
           )}
