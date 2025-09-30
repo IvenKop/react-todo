@@ -29,11 +29,12 @@ export default function App() {
   );
 
   const visibleTodos = useMemo(() => {
-    return activeFilter === "active"
-      ? todos.filter((t) => !t.completed)
-      : activeFilter === "completed"
-        ? todos.filter((t) => t.completed)
-        : todos;
+    if (!activeFilter || activeFilter === "all") {
+      return todos;
+    }
+    return todos.filter((t) =>
+      activeFilter === "active" ? !t.completed : t.completed,
+    );
   }, [todos, activeFilter]);
 
   const activeCount = useMemo(() => {
