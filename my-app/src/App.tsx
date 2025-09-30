@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
-import type { Todo } from "./types";
-import { getTodos, saveTodos } from "./utils/storage";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Todo, Filter } from "./types";
+import { getTodos, saveTodos, getFilter, saveFilter } from "./utils/storage";
 import { genId } from "./utils/id";
 
+import InfoMenu from "./components/InfoMenu";
 import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
 import TaskList from "./components/TaskList";
@@ -10,6 +11,41 @@ import Footer from "./components/Footer";
 
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>(() => getTodos());
+
+  const [activeFilter, setActiveFilter] = useState<Filter>(() => getFilter());
+
+  const setFilter = useCallback<React.Dispatch<React.SetStateAction<Filter>>>(
+    (action) => {
+      setActiveFilter((prev) => {
+        const next =
+          typeof action === "function"
+            ? (action as (p: Filter) => Filter)(prev)
+            : action;
+        saveFilter(next);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const visibleTodos = useMemo(() => {
+    if (!activeFilter || activeFilter === "all") {
+      return todos;
+    }
+    return todos.filter((t) =>
+      activeFilter === "active" ? !t.completed : t.completed,
+    );
+  }, [todos, activeFilter]);
+
+  const activeCount = useMemo(() => {
+    return activeFilter === "active"
+      ? visibleTodos.length
+      : todos.filter((t) => !t.completed).length;
+  }, [activeFilter, visibleTodos.length, todos]);
+
+  const handleClearCompleted = useCallback(() => {
+    setTodos((prev) => prev.filter((t) => !t.completed));
+  }, []);
 
   useEffect(() => {
     saveTodos(todos);
@@ -32,6 +68,7 @@ export default function App() {
       prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)),
     );
   }, []);
+
   const isListEmpty = todos.length > 0;
   const isAllSelected = isListEmpty && todos.every((t) => t.completed);
 
@@ -55,11 +92,20 @@ export default function App() {
             onToggleAll={handleToggleAll}
           />
           <TaskList
-            todos={todos}
+            todos={visibleTodos}
             onDelete={handleDelete}
             onEdit={handleEdit}
             onToggle={handleToggle}
           />
+
+          {todos.length > 0 && (
+            <InfoMenu
+              activeCount={activeCount}
+              filter={activeFilter}
+              setFilter={setFilter}
+              onClearCompleted={handleClearCompleted}
+            />
+          )}
         </div>
       </main>
       <Footer />
