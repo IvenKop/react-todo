@@ -21,7 +21,7 @@ export default function InfoMenu({
   return (
     <section
       aria-label="Todo footer"
-      className="relative z-[2] mx-auto flex w-[95%] max-w-[680px] items-center justify-between border-t border-[#e6e6e6] bg-transparent px-[10px] py-0 text-[14px] text-[#6b6b6b]"
+      className="relative z-[2] flex w-[100%] max-w-[680px] items-center justify-between border-b border-[#c3c3c3] bg-transparent px-[10px] px-[20px] py-0 text-[14px] text-[#6b6b6b]"
     >
       <p className="whitespace-nowrap">
         {activeCount} {pluralize(activeCount)}
