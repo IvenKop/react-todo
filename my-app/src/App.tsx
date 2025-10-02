@@ -51,15 +51,16 @@ export default function App() {
     saveTodos(todos);
   }, [todos]);
 
-  const normalize = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+  function normalize(text: string): string {
+    return text.trim().replace(/\s+/g, " ");
+  }
 
   const handleAdd = useCallback((text: string) => {
-    const cleaned = text.trim();
-    if (!cleaned) return;
+    const n = normalize(text);
+    if (!n) return;
     setTodos((prev) => {
-      const n = normalize(cleaned);
       if (prev.some((t) => normalize(t.text) === n)) return prev;
-      return [...prev, { id: genId(), text: cleaned, completed: false }];
+      return [...prev, { id: genId(), text: n, completed: false }];
     });
   }, []);
 
