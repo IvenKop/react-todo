@@ -64,7 +64,12 @@ function TaskItem({
 
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
-      if ((e.target as HTMLElement).closest('button[aria-label="Delete todo"]'))
+      if (
+        (e.target as HTMLElement).closest('button[aria-label="Delete todo"]') ||
+        (e.target as HTMLElement).closest(
+          'button[aria-label="Toggle completed"]',
+        )
+      )
         return;
       if (!isEditing) setIsEditing(true);
     },
@@ -98,8 +103,10 @@ function TaskItem({
   return (
     <li
       className={clsx(
-        "group relative z-[2] border-b border-[#c3c3c3] p-[16px] pl-[60px] pr-[76px] text-[24px] leading-[1.4]",
-        isEditing && "outline outline-1 outline-[#b83f45]",
+        "group relative z-[2] text-[24px] leading-[1.4]",
+        "border-b border-[#c3c3c3] p-[16px] pl-[60px] pr-[76px]",
+        isEditing &&
+          "border-none p-0 shadow-[0_2px_5px_rgba(246,37,37,0.3),0_2px_10px_rgba(246,37,37,0.3)]",
       )}
       onDoubleClick={handleDoubleClick}
     >
@@ -115,7 +122,7 @@ function TaskItem({
             "transition-[border-color,background-color,box-shadow] duration-[150ms]",
             "hover:border-[#bfbfbf] hover:bg-[rgba(0,0,0,0.02)]",
             "focus-visible:shadow-[0_0_0_2px_rgba(0,0,0,0.08)] focus-visible:outline-none",
-            todo.completed && "border-[#59a193] bg-[#59a193]",
+            todo.completed && "border-[#59a193]",
           )}
         >
           <span
@@ -149,7 +156,7 @@ function TaskItem({
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
-          className="m-0 box-border block w-full border-0 bg-transparent p-0 text-[24px] leading-[1.4] outline-none focus:ring-0"
+          className="box-border block w-full border border-[#b83f45] bg-[rgb(246,246,246)] p-[16px] pl-[60px] text-[24px] leading-[1.4] outline-none focus:ring-0"
         />
       )}
 
