@@ -8,40 +8,51 @@ import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
 import TaskList from "./components/TaskList";
 import Footer from "./components/Footer";
+import Pagination from "./components/Pagination";
 
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>(() => getTodos());
-
   const [activeFilter, setActiveFilter] = useState<Filter>(() => getFilter());
 
-  const setFilter = useCallback<React.Dispatch<React.SetStateAction<Filter>>>(
-    (action) => {
-      setActiveFilter((prev) => {
-        const next =
-          typeof action === "function"
-            ? (action as (p: Filter) => Filter)(prev)
-            : action;
-        saveFilter(next);
-        return next;
-      });
-    },
-    [],
-  );
+  const [page, setPage] = useState(1);
+  const pageSize = 5;
+
+  const setFilter = (action: Filter | ((p: Filter) => Filter)) => {
+    setActiveFilter((prev) => {
+      const next =
+        typeof action === "function"
+          ? (action as (p: Filter) => Filter)(prev)
+          : action;
+      saveFilter(next);
+      return next;
+    });
+  };
 
   const visibleTodos = useMemo(() => {
-    if (!activeFilter || activeFilter === "all") {
-      return todos;
-    }
+    if (!activeFilter || activeFilter === "all") return todos;
     return todos.filter((t) =>
       activeFilter === "active" ? !t.completed : t.completed,
     );
   }, [todos, activeFilter]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [activeFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleTodos.length / pageSize));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  const start = (page - 1) * pageSize;
+  const pagedTodos = visibleTodos.slice(start, start + pageSize);
+
   const activeCount = useMemo(() => {
     return activeFilter === "active"
       ? visibleTodos.length
       : todos.filter((t) => !t.completed).length;
-  }, [activeFilter, visibleTodos.length, todos]);
+  }, [activeFilter, visibleTodos, todos]);
 
   const handleClearCompleted = useCallback(() => {
     setTodos((prev) => prev.filter((t) => !t.completed));
@@ -100,19 +111,6 @@ export default function App() {
       <Header />
       <main>
         <div className="relative mx-auto w-[90%] max-w-[550px]">
-          {todos.length > 0 && (
-            <>
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -bottom-[12px] left-[20px] right-[20px] z-[1] h-[6px] rounded-none bg-[rgb(246,246,246)] shadow-[0_1px_1px_rgba(0,0,0,0.2),0_8px_0_-3px_#f6f6f6,0_9px_1px_-3px_rgba(0,0,0,0.2),0_16px_0_-6px_#f6f6f6,0_17px_2px_-6px_rgba(0,0,0,0.2)]"
-              />
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -bottom-[6px] left-[10px] right-[10px] z-[1] h-[6px] rounded-none bg-[rgb(246,246,246)] shadow-[0_1px_1px_rgba(0,0,0,0.2),0_8px_0_-3px_#f6f6f6,0_9px_1px_-3px_rgba(0,0,0,0.2),0_16px_0_-6px_#f6f6f6,0_17px_2px_-6px_rgba(0,0,0,0.2)]"
-              />
-            </>
-          )}
-
           <div className="relative z-0 bg-[rgb(246,246,246)] shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)]">
             <TaskInput
               onAdd={handleAdd}
@@ -121,7 +119,7 @@ export default function App() {
               onToggleAll={handleToggleAll}
             />
             <TaskList
-              todos={visibleTodos}
+              todos={pagedTodos}
               onDelete={handleDelete}
               onEdit={handleEdit}
               onToggle={handleToggle}
@@ -136,6 +134,15 @@ export default function App() {
             )}
           </div>
         </div>
+
+        {visibleTodos.length > 0 && (
+          <Pagination
+            total={visibleTodos.length}
+            pageSize={pageSize}
+            currentPage={page}
+            onPageChange={setPage}
+          />
+        )}
       </main>
       <Footer />
     </div>
