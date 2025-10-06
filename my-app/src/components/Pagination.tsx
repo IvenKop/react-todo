@@ -1,42 +1,51 @@
 import * as Tabs from "@radix-ui/react-tabs";
 
-const MAX_VISIBLE_PAGES = 7;
+const MAX_VISIBLE_PAGES = 5;
+const EDGE_WINDOW = 3;
 
-type PageItem = { value: number; withDivider?: boolean };
+type PageItem = { type: "page"; value: number } | { type: "divider" };
 
 type Props = {
   total: number;
   pageSize: number;
   currentPage: number;
-  onPageChange: (page: string) => void;
+  onPageChange: (page: number) => void;
 };
+
+const pageItem = (n: number): PageItem => ({ type: "page" as const, value: n });
+const dividerItem: PageItem = { type: "divider" as const };
 
 function buildPages(curr: number, total: number): PageItem[] {
   if (total <= MAX_VISIBLE_PAGES) {
-    return Array.from({ length: total }, (_, i) => ({ value: i + 1 }));
+    return Array.from({ length: total }, (_, i) => pageItem(i + 1));
   }
-  if (curr <= 3) {
+
+  if (curr <= EDGE_WINDOW) {
     return [
-      { value: 1 },
-      { value: 2 },
-      { value: 3, withDivider: true },
-      { value: total },
+      ...Array.from({ length: EDGE_WINDOW }, (_, i) => pageItem(i + 1)),
+      dividerItem,
+      pageItem(total),
     ];
   }
-  if (curr >= total - 2) {
+
+  if (curr >= total - (EDGE_WINDOW - 1)) {
     return [
-      { value: 1, withDivider: true },
-      { value: total - 2 },
-      { value: total - 1 },
-      { value: total },
+      pageItem(1),
+      dividerItem,
+      ...Array.from({ length: EDGE_WINDOW }, (_, i) =>
+        pageItem(total - (EDGE_WINDOW - 1) + i),
+      ),
     ];
   }
+
   return [
-    { value: 1, withDivider: true },
-    { value: curr - 1 },
-    { value: curr },
-    { value: curr + 1 },
-    { value: total, withDivider: true },
+    pageItem(1),
+    dividerItem,
+    pageItem(curr - 1),
+    pageItem(curr),
+    pageItem(curr + 1),
+    dividerItem,
+    pageItem(total),
   ];
 }
 
@@ -51,22 +60,18 @@ export default function Pagination({
 
   const pages = buildPages(currentPage, totalPages);
 
-  const handlePrev = () => {
-    const next = Math.max(1, currentPage - 1);
-    onPageChange(String(next));
-  };
-
-  const handleNext = () => {
-    const next = Math.min(totalPages, currentPage + 1);
-    onPageChange(String(next));
-  };
+  const handlePrev = () => onPageChange(Math.max(1, currentPage - 1));
+  const handleNext = () => onPageChange(Math.min(totalPages, currentPage + 1));
 
   return (
     <nav
       aria-label="Pagination"
       className="mx-auto mb-10 mt-[20px] flex justify-center"
     >
-      <Tabs.Root value={String(currentPage)} onValueChange={onPageChange}>
+      <Tabs.Root
+        value={String(currentPage)}
+        onValueChange={(v) => onPageChange(Number(v))}
+      >
         <div className="flex select-none items-center gap-[22px] text-[18px] leading-none text-[#333]">
           <button
             type="button"
@@ -80,21 +85,22 @@ export default function Pagination({
           </button>
 
           <Tabs.List className="flex items-center gap-[22px]">
-            {pages.map((p, i) => (
-              <div
-                key={`${p.value}-${i}`}
-                className="flex items-center gap-[22px]"
-              >
+            {pages.map((p, i) =>
+              p.type === "divider" ? (
+                <span key={`dots-${i}`} className="px-[2px]">
+                  …
+                </span>
+              ) : (
                 <Tabs.Trigger
+                  key={p.value}
                   value={String(p.value)}
                   className="cursor-pointer border-none bg-transparent px-[2px] outline-none hover:underline data-[state=active]:text-[#b83f45]"
                   aria-current={p.value === currentPage ? "page" : undefined}
                 >
                   {p.value}
                 </Tabs.Trigger>
-                {p.withDivider && <span className="px-[2px]">…</span>}
-              </div>
-            ))}
+              ),
+            )}
           </Tabs.List>
 
           <button

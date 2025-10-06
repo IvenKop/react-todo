@@ -10,10 +10,13 @@ import TaskList from "./components/TaskList";
 import Footer from "./components/Footer";
 import Pagination from "./components/Pagination";
 
+const FIRST_PAGE = 1;
+const PAGE_SIZE = 5;
+
 function readPageFromURL(): number {
   const sp = new URLSearchParams(window.location.search);
-  const p = Number(sp.get("page") || "1");
-  return Number.isFinite(p) && p >= 1 ? p : 1;
+  const p = Number(sp.get("page") || String(FIRST_PAGE));
+  return Number.isFinite(p) && p >= FIRST_PAGE ? p : FIRST_PAGE;
 }
 
 function writePageToURL(nextPage: number) {
@@ -25,22 +28,13 @@ function writePageToURL(nextPage: number) {
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>(() => getTodos());
   const [activeFilter, setActiveFilter] = useState<Filter>(() => getFilter());
-
   const [page, setPage] = useState<number>(() => readPageFromURL());
-  const pageSize = 5;
 
-  const setFilter: React.Dispatch<React.SetStateAction<Filter>> = (action) => {
-    setActiveFilter((prev) => {
-      const next =
-        typeof action === "function"
-          ? (action as (p: Filter) => Filter)(prev)
-          : action;
-      saveFilter(next);
-      return next;
-    });
-
-    setPage(1);
-    writePageToURL(1);
+  const setFilter = (newFilter: Filter) => {
+    setActiveFilter(newFilter);
+    saveFilter(newFilter);
+    setPage(FIRST_PAGE);
+    writePageToURL(FIRST_PAGE);
   };
 
   useEffect(() => {
@@ -54,7 +48,7 @@ export default function App() {
     );
   }, [todos, activeFilter]);
 
-  const totalPages = Math.max(1, Math.ceil(visibleTodos.length / pageSize));
+  const totalPages = Math.max(1, Math.ceil(visibleTodos.length / PAGE_SIZE));
 
   if (page > totalPages) {
     return (
@@ -67,8 +61,8 @@ export default function App() {
     );
   }
 
-  const start = (page - 1) * pageSize;
-  const pagedTodos = visibleTodos.slice(start, start + pageSize);
+  const start = (page - 1) * PAGE_SIZE;
+  const pagedTodos = visibleTodos.slice(start, start + PAGE_SIZE);
 
   const activeCount = useMemo(() => {
     return activeFilter === "active"
@@ -128,11 +122,9 @@ export default function App() {
     });
   }, []);
 
-  const handlePageChange = useCallback((v: string) => {
-    const next = Number(v);
-    if (Number.isFinite(next) && next >= 1) {
-      setPage(next);
-    }
+  const handlePageChange = useCallback((next: number) => {
+    setPage(next);
+    writePageToURL(next);
   }, []);
 
   return (
@@ -166,7 +158,7 @@ export default function App() {
 
         <Pagination
           total={visibleTodos.length}
-          pageSize={pageSize}
+          pageSize={PAGE_SIZE}
           currentPage={page}
           onPageChange={handlePageChange}
         />
