@@ -8,40 +8,67 @@ import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
 import TaskList from "./components/TaskList";
 import Footer from "./components/Footer";
+import Pagination from "./components/Pagination";
+
+const FIRST_PAGE = 1;
+const PAGE_SIZE = 5;
+
+function readPageFromURL(): number {
+  const sp = new URLSearchParams(window.location.search);
+  const p = Number(sp.get("page") || String(FIRST_PAGE));
+  return Number.isFinite(p) && p >= FIRST_PAGE ? p : FIRST_PAGE;
+}
+
+function writePageToURL(nextPage: number) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("page", String(nextPage));
+  window.history.replaceState({}, "", url);
+}
 
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>(() => getTodos());
-
   const [activeFilter, setActiveFilter] = useState<Filter>(() => getFilter());
+  const [page, setPage] = useState<number>(() => readPageFromURL());
 
-  const setFilter = useCallback<React.Dispatch<React.SetStateAction<Filter>>>(
-    (action) => {
-      setActiveFilter((prev) => {
-        const next =
-          typeof action === "function"
-            ? (action as (p: Filter) => Filter)(prev)
-            : action;
-        saveFilter(next);
-        return next;
-      });
-    },
-    [],
-  );
+  const setFilter = (newFilter: Filter) => {
+    setActiveFilter(newFilter);
+    saveFilter(newFilter);
+    setPage(FIRST_PAGE);
+    writePageToURL(FIRST_PAGE);
+  };
+
+  useEffect(() => {
+    writePageToURL(page);
+  }, [page]);
 
   const visibleTodos = useMemo(() => {
-    if (!activeFilter || activeFilter === "all") {
-      return todos;
-    }
+    if (!activeFilter || activeFilter === "all") return todos;
     return todos.filter((t) =>
       activeFilter === "active" ? !t.completed : t.completed,
     );
   }, [todos, activeFilter]);
 
+  const totalPages = Math.max(1, Math.ceil(visibleTodos.length / PAGE_SIZE));
+
+  if (page > totalPages) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div role="alert" className="text-center">
+          <h1 className="mb-2 text-3xl font-[200] text-[#b83f45]">404</h1>
+          <p className="text-[#5c5c5c]">Page not found</p>
+        </div>
+      </div>
+    );
+  }
+
+  const start = (page - 1) * PAGE_SIZE;
+  const pagedTodos = visibleTodos.slice(start, start + PAGE_SIZE);
+
   const activeCount = useMemo(() => {
     return activeFilter === "active"
       ? visibleTodos.length
       : todos.filter((t) => !t.completed).length;
-  }, [activeFilter, visibleTodos.length, todos]);
+  }, [activeFilter, visibleTodos, todos]);
 
   const handleClearCompleted = useCallback(() => {
     setTodos((prev) => prev.filter((t) => !t.completed));
@@ -95,24 +122,16 @@ export default function App() {
     });
   }, []);
 
+  const handlePageChange = useCallback((next: number) => {
+    setPage(next);
+    writePageToURL(next);
+  }, []);
+
   return (
     <div className="min-h-screen">
       <Header />
       <main>
         <div className="relative mx-auto w-[90%] max-w-[550px]">
-          {todos.length > 0 && (
-            <>
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -bottom-[12px] left-[20px] right-[20px] z-[1] h-[6px] rounded-none bg-[rgb(246,246,246)] shadow-[0_1px_1px_rgba(0,0,0,0.2),0_8px_0_-3px_#f6f6f6,0_9px_1px_-3px_rgba(0,0,0,0.2),0_16px_0_-6px_#f6f6f6,0_17px_2px_-6px_rgba(0,0,0,0.2)]"
-              />
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -bottom-[6px] left-[10px] right-[10px] z-[1] h-[6px] rounded-none bg-[rgb(246,246,246)] shadow-[0_1px_1px_rgba(0,0,0,0.2),0_8px_0_-3px_#f6f6f6,0_9px_1px_-3px_rgba(0,0,0,0.2),0_16px_0_-6px_#f6f6f6,0_17px_2px_-6px_rgba(0,0,0,0.2)]"
-              />
-            </>
-          )}
-
           <div className="relative z-0 bg-[rgb(246,246,246)] shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)]">
             <TaskInput
               onAdd={handleAdd}
@@ -121,7 +140,7 @@ export default function App() {
               onToggleAll={handleToggleAll}
             />
             <TaskList
-              todos={visibleTodos}
+              todos={pagedTodos}
               onDelete={handleDelete}
               onEdit={handleEdit}
               onToggle={handleToggle}
@@ -136,6 +155,13 @@ export default function App() {
             )}
           </div>
         </div>
+
+        <Pagination
+          total={visibleTodos.length}
+          pageSize={PAGE_SIZE}
+          currentPage={page}
+          onPageChange={handlePageChange}
+        />
       </main>
       <Footer />
     </div>

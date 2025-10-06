@@ -4,7 +4,7 @@ import type { Filter } from "../types";
 type Props = {
   activeCount: number;
   filter: Filter;
-  setFilter: React.Dispatch<React.SetStateAction<Filter>>;
+  setFilter: (f: Filter) => void;
   onClearCompleted: () => void;
 };
 

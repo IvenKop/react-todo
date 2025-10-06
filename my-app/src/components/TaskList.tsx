@@ -156,7 +156,7 @@ function TaskItem({
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onBlur={handleBlur}
-          className="box-border block w-full border border-[#b83f45] bg-[rgb(246,246,246)] p-[16px] pl-[60px] text-[24px] leading-[1.4] outline-none focus:ring-0"
+          className="box-border block w-full border-none bg-[rgb(246,246,246)] p-0 text-[24px] leading-[1.4] outline-none focus:ring-0"
         />
       )}
 
