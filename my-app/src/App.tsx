@@ -10,14 +10,26 @@ import TaskList from "./components/TaskList";
 import Footer from "./components/Footer";
 import Pagination from "./components/Pagination";
 
+function readPageFromURL(): number {
+  const sp = new URLSearchParams(window.location.search);
+  const p = Number(sp.get("page") || "1");
+  return Number.isFinite(p) && p >= 1 ? p : 1;
+}
+
+function writePageToURL(nextPage: number) {
+  const url = new URL(window.location.href);
+  url.searchParams.set("page", String(nextPage));
+  window.history.replaceState({}, "", url);
+}
+
 export default function App() {
   const [todos, setTodos] = useState<Todo[]>(() => getTodos());
   const [activeFilter, setActiveFilter] = useState<Filter>(() => getFilter());
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState<number>(() => readPageFromURL());
   const pageSize = 5;
 
-  const setFilter = (action: Filter | ((p: Filter) => Filter)) => {
+  const setFilter: React.Dispatch<React.SetStateAction<Filter>> = (action) => {
     setActiveFilter((prev) => {
       const next =
         typeof action === "function"
@@ -26,7 +38,14 @@ export default function App() {
       saveFilter(next);
       return next;
     });
+
+    setPage(1);
+    writePageToURL(1);
   };
+
+  useEffect(() => {
+    writePageToURL(page);
+  }, [page]);
 
   const visibleTodos = useMemo(() => {
     if (!activeFilter || activeFilter === "all") return todos;
@@ -35,15 +54,18 @@ export default function App() {
     );
   }, [todos, activeFilter]);
 
-  useEffect(() => {
-    setPage(1);
-  }, [activeFilter]);
-
   const totalPages = Math.max(1, Math.ceil(visibleTodos.length / pageSize));
 
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+  if (page > totalPages) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div role="alert" className="text-center">
+          <h1 className="mb-2 text-3xl font-[200] text-[#b83f45]">404</h1>
+          <p className="text-[#5c5c5c]">Page not found</p>
+        </div>
+      </div>
+    );
+  }
 
   const start = (page - 1) * pageSize;
   const pagedTodos = visibleTodos.slice(start, start + pageSize);
@@ -106,6 +128,13 @@ export default function App() {
     });
   }, []);
 
+  const handlePageChange = useCallback((v: string) => {
+    const next = Number(v);
+    if (Number.isFinite(next) && next >= 1) {
+      setPage(next);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -135,14 +164,12 @@ export default function App() {
           </div>
         </div>
 
-        {visibleTodos.length > 0 && (
-          <Pagination
-            total={visibleTodos.length}
-            pageSize={pageSize}
-            currentPage={page}
-            onPageChange={setPage}
-          />
-        )}
+        <Pagination
+          total={visibleTodos.length}
+          pageSize={pageSize}
+          currentPage={page}
+          onPageChange={handlePageChange}
+        />
       </main>
       <Footer />
     </div>
