@@ -1,4 +1,5 @@
 import * as Tabs from "@radix-ui/react-tabs";
+import { useTranslation } from "react-i18next";
 
 const MAX_VISIBLE_PAGES = 5;
 const EDGE_WINDOW = 3;
@@ -56,6 +57,7 @@ export default function Pagination({
   onPageChange,
 }: Props) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const { t } = useTranslation();
   if (totalPages <= 1) return null;
 
   const pages = buildPages(currentPage, totalPages);
@@ -78,10 +80,10 @@ export default function Pagination({
             onClick={handlePrev}
             disabled={currentPage === 1}
             className="flex cursor-pointer items-center gap-[6px] border-none bg-transparent transition-transform duration-200 hover:scale-[1.15] disabled:text-[#c9c9c9]"
-            aria-label="Previous page"
+            aria-label={t("pagination.prev")}
           >
             <span className="text-[#c9c9c9]">‹</span>
-            <span>Prev</span>
+            <span>{t("pagination.prev")}</span>
           </button>
 
           <Tabs.List className="flex items-center gap-[22px]">
@@ -108,9 +110,9 @@ export default function Pagination({
             onClick={handleNext}
             disabled={currentPage === totalPages}
             className="flex cursor-pointer items-center gap-[6px] border-none bg-transparent transition-transform duration-200 hover:scale-[1.15] disabled:text-[#c9c9c9]"
-            aria-label="Next page"
+            aria-label={t("pagination.next")}
           >
-            <span>Next</span>
+            <span>{t("pagination.next")}</span>
             <span className="text-[#c9c9c9]">›</span>
           </button>
         </div>

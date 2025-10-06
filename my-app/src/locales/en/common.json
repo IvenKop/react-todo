@@ -1,0 +1,28 @@
+{
+  "input": {
+    "placeholder": "What needs to be done?"
+  },
+  "infoMenu": {
+    "all": "All",
+    "active": "Active",
+    "completed": "Completed",
+    "clearCompleted": "Clear completed",
+    "itemsLeft_one": "{{count}} item left!",
+    "itemsLeft_other": "{{count}} items left!"
+  },
+  "pagination": {
+    "prev": "Prev",
+    "next": "Next"
+  },
+  "error": {
+    "404": {
+      "title": "404",
+      "message": "Page not found"
+    }
+  },
+  "footer": {
+    "doubleClick": "Double-click to edit a todo",
+    "createdBy": "Created by the Devico Solution",
+    "partOf": "part of {{brand}}"
+  }
+}
