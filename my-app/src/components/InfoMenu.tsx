@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import type { Filter } from "../types";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   activeCount: number;
@@ -8,23 +9,21 @@ type Props = {
   onClearCompleted: () => void;
 };
 
-function pluralize(n: number) {
-  return n === 1 ? "item left!" : "items left!";
-}
-
 export default function InfoMenu({
   activeCount,
   filter,
   setFilter,
   onClearCompleted,
 }: Props) {
+  const { t } = useTranslation();
+
   return (
     <section
       aria-label="Todo footer"
       className="relative z-[2] flex w-[100%] max-w-[680px] items-center justify-between border-b border-[#c3c3c3] bg-transparent px-[10px] px-[20px] py-0 text-[14px] text-[#6b6b6b]"
     >
       <p className="whitespace-nowrap">
-        {activeCount} {pluralize(activeCount)}
+        {t("infoMenu.itemsLeft", { count: activeCount })}
       </p>
 
       <div className="flex items-center gap-[10px] font-[100]" role="tablist">
@@ -39,8 +38,9 @@ export default function InfoMenu({
               "border-[#b83f45] shadow-[0_0px_3px_rgba(246,37,37,0.3),0_0px_5px_rgba(246,37,37,0.3)]",
           )}
         >
-          All
+          {t("infoMenu.all")}
         </button>
+
         <button
           type="button"
           aria-pressed={filter === "active"}
@@ -52,8 +52,9 @@ export default function InfoMenu({
               "border-[#b83f45] shadow-[0_0px_3px_rgba(246,37,37,0.3),0_0px_5px_rgba(246,37,37,0.3)]",
           )}
         >
-          Active
+          {t("infoMenu.active")}
         </button>
+
         <button
           type="button"
           aria-pressed={filter === "completed"}
@@ -65,7 +66,7 @@ export default function InfoMenu({
               "border-[#b83f45] shadow-[0_0px_3px_rgba(246,37,37,0.3),0_0px_5px_rgba(246,37,37,0.3)]",
           )}
         >
-          Completed
+          {t("infoMenu.completed")}
         </button>
       </div>
 
@@ -74,7 +75,7 @@ export default function InfoMenu({
         onClick={onClearCompleted}
         className="cursor-pointer rounded border-none bg-transparent px-[6px] py-[3px] text-[#6b6b6b] hover:underline"
       >
-        Clear completed
+        {t("infoMenu.clearCompleted")}
       </button>
     </section>
   );

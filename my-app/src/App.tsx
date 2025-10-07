@@ -2,7 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Todo, Filter } from "./types";
 import { getTodos, saveTodos, getFilter, saveFilter } from "./utils/storage";
 import { genId } from "./utils/id";
+import { useTranslation } from "react-i18next";
 
+import LanguageSwitcher from "./components/LanguageSwitcher";
 import InfoMenu from "./components/InfoMenu";
 import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
@@ -29,6 +31,7 @@ export default function App() {
   const [todos, setTodos] = useState<Todo[]>(() => getTodos());
   const [activeFilter, setActiveFilter] = useState<Filter>(() => getFilter());
   const [page, setPage] = useState<number>(() => readPageFromURL());
+  const { t } = useTranslation();
 
   const setFilter = (newFilter: Filter) => {
     setActiveFilter(newFilter);
@@ -54,9 +57,12 @@ export default function App() {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div role="alert" className="text-center">
-          <h1 className="mb-2 text-3xl font-[200] text-[#b83f45]">404</h1>
-          <p className="text-[#5c5c5c]">Page not found</p>
+          <h1 className="mb-2 text-3xl font-[200] text-[#b83f45]">
+            {t("error.404.title")}
+          </h1>
+          <p className="text-[#5c5c5c]">{t("error.404.message")}</p>
         </div>
+        <LanguageSwitcher />
       </div>
     );
   }
@@ -131,6 +137,7 @@ export default function App() {
     <div className="min-h-screen">
       <Header />
       <main>
+        <LanguageSwitcher />
         <div className="relative mx-auto w-[90%] max-w-[550px]">
           <div className="relative z-0 bg-[rgb(246,246,246)] shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)]">
             <TaskInput

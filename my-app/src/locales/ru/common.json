@@ -1,0 +1,30 @@
+{
+  "input": {
+    "placeholder": "Что нужно сделать?"
+  },
+  "infoMenu": {
+    "all": "Все",
+    "active": "Активные",
+    "completed": "Выполнены",
+    "clearCompleted": "Очистить выполненные",
+    "itemsLeft_one": "{{count}} задача еще!",
+    "itemsLeft_few": "{{count}} задачи еще!",
+    "itemsLeft_many": "{{count}} задач еще!",
+    "itemsLeft_other": "{{count}} задач еще!"
+  },
+  "pagination": {
+    "prev": "Назад",
+    "next": "Вперед"
+  },
+  "error": {
+    "404": {
+      "title": "404",
+      "message": "Страница не найдена"
+    }
+  },
+  "footer": {
+    "doubleClick": "Двойной клик — редактировать задачу",
+    "createdBy": "Создано командой Devico Solution",
+    "partOf": "часть {{brand}}"
+  }
+}

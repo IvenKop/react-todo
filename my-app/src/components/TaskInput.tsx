@@ -1,5 +1,6 @@
 import { useState } from "react";
 import clsx from "clsx";
+import { useTranslation } from "react-i18next";
 
 type Props = {
   onAdd: (text: string) => void;
@@ -15,6 +16,7 @@ export default function TaskInput({
   onToggleAll,
 }: Props) {
   const [value, setValue] = useState("");
+  const { t } = useTranslation();
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== "Enter") return;
@@ -52,7 +54,7 @@ export default function TaskInput({
       <input
         className="box-border block w-full border-0 bg-transparent p-4 pl-[16px] text-[24px] leading-[1.4] text-[#5c5c5c] outline-none transition duration-200 placeholder:font-[200] placeholder:italic placeholder:text-[#bfbfbf]"
         type="text"
-        placeholder="What needs to be done?"
+        placeholder={t("input.placeholder")}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
