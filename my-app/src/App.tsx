@@ -137,8 +137,8 @@ export default function App() {
     <div className="min-h-screen">
       <Header />
       <main>
-        <LanguageSwitcher />
         <div className="relative mx-auto w-[90%] max-w-[550px]">
+          <LanguageSwitcher />
           <div className="relative z-0 bg-[rgb(246,246,246)] shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)]">
             <TaskInput
               onAdd={handleAdd}

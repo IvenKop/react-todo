@@ -14,33 +14,42 @@ export default function LanguageSwitcher() {
     localStorage.setItem("i18nextLng", lang);
   };
 
+  const languageLabels: Record<string, string> = {
+    en: "English",
+    ru: "Русский",
+  };
+
   return (
-    <div className="fixed right-6 top-6 z-50">
+    <div className="absolute left-[calc(100%+16px)] top-[12px] z-50">
       <Select.Root value={value} onValueChange={handleChange}>
         <Select.Trigger
           aria-label="Language"
-          className="inline-flex items-center gap-2 rounded-lg border border-[#c3c3c3] bg-white px-3 py-2 text-sm text-[#333] shadow-sm transition hover:shadow"
+          className="inline-flex min-w-[140px] items-center justify-between gap-[8px] border border-[#e6e6e6] bg-white/95 pb-[8px] pl-[15px] pr-[15px] pt-[8px] text-[14px] text-[#222] shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)] outline-none transition-shadow hover:shadow-[0_2px_6px_rgba(0,0,0,0.08),0_10px_28px_rgba(0,0,0,0.08)]"
         >
-          <Select.Value />
-          <Select.Icon>▾</Select.Icon>
+          <Select.Value placeholder="Language">
+            {languageLabels[value] ?? "Language"}
+          </Select.Value>
+          <Select.Icon className="text-[#777]">▾</Select.Icon>
         </Select.Trigger>
 
         <Select.Content
           position="popper"
-          sideOffset={6}
-          className="rounded-lg border border-[#e5e5e5] bg-white p-1 shadow-lg"
+          side="bottom"
+          sideOffset={8}
+          align="start"
+          className="overflow-hidden border border-[#ececec] bg-white shadow-[0_8px_24px_rgba(0,0,0,0.1)]"
         >
-          <Select.Viewport>
+          <Select.Viewport className="p-[4px]">
             <Select.Item
               value="en"
-              className="cursor-pointer select-none rounded px-3 py-2 text-sm text-[#333] outline-none data-[highlighted]:bg-[#f3f3f3]"
+              className="cursor-pointer select-none pb-[10px] pl-[16px] pr-[16px] pt-[10px] text-[14px] text-[#222] outline-none data-[highlighted]:bg-[#f5f5f5]"
             >
               <Select.ItemText>English</Select.ItemText>
             </Select.Item>
 
             <Select.Item
               value="ru"
-              className="cursor-pointer select-none rounded px-3 py-2 text-sm text-[#333] outline-none data-[highlighted]:bg-[#f3f3f3]"
+              className="cursor-pointer select-none pb-[10px] pl-[16px] pr-[16px] pt-[10px] text-[14px] text-[#222] outline-none data-[highlighted]:bg-[#f5f5f5]"
             >
               <Select.ItemText>Русский</Select.ItemText>
             </Select.Item>
