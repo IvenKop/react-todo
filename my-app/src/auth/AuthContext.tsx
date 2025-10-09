@@ -1,4 +1,5 @@
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useMemo, useState, type ReactNode } from "react";
+import { loginSchema } from "../validation/auth";
 
 type AuthContextType = {
   isAuthed: boolean;
@@ -6,17 +7,25 @@ type AuthContextType = {
   logout: () => void;
 };
 
-const AuthContext = createContext<AuthContextType | null>(null);
+export const AuthContext = createContext<AuthContextType | null>(null);
 
 const AUTH_KEY = "auth_token";
+// const DEMO = { email: "demo@example.com", password: "1234" };
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [isAuthed, setIsAuthed] = useState<boolean>(() => {
-    return Boolean(localStorage.getItem(AUTH_KEY));
-  });
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [isAuthed, setIsAuthed] = useState<boolean>(() =>
+    Boolean(localStorage.getItem(AUTH_KEY)),
+  );
 
   const login = (email: string, password: string) => {
-    if (!email || !password) return;
+    const parsed = loginSchema.safeParse({ email, password });
+    if (!parsed.success) throw parsed.error;
+
+    // const { email: e, password: p } = parsed.data;
+    // if (e !== DEMO.email || p !== DEMO.password) {
+    //   throw new Error("WRONG_EMAIL_OR_PASSWORD");
+    // }
+
     localStorage.setItem(AUTH_KEY, "mock-token");
     setIsAuthed(true);
   };
@@ -29,10 +38,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(() => ({ isAuthed, login, logout }), [isAuthed]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
 }
