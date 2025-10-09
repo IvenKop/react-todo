@@ -4,7 +4,6 @@ import { getTodos, saveTodos, getFilter, saveFilter } from "./utils/storage";
 import { genId } from "./utils/id";
 import { useTranslation } from "react-i18next";
 
-import LanguageSwitcher from "./components/LanguageSwitcher";
 import InfoMenu from "./components/InfoMenu";
 import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
@@ -62,7 +61,6 @@ export default function App() {
           </h1>
           <p className="text-[#5c5c5c]">{t("error.404.message")}</p>
         </div>
-        <LanguageSwitcher />
       </div>
     );
   }
@@ -137,7 +135,6 @@ export default function App() {
     <div className="min-h-screen">
       <Header />
       <main>
-        <LanguageSwitcher />
         <div className="relative mx-auto w-[90%] max-w-[550px]">
           <div className="relative z-0 bg-[rgb(246,246,246)] shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)]">
             <TaskInput
