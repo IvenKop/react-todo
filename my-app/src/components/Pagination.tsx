@@ -1,5 +1,6 @@
 import * as Tabs from "@radix-ui/react-tabs";
 import { useTranslation } from "react-i18next";
+export { buildPages };
 
 const MAX_VISIBLE_PAGES = 5;
 const EDGE_WINDOW = 3;
