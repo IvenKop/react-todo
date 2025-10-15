@@ -1,41 +1,38 @@
-import { createContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useMemo, useState } from "react";
+import type { LoginInput } from "../validation/auth";
 import { loginSchema } from "../validation/auth";
+import { apiLogin } from "../api/auth";
 
-type AuthContextType = {
+type AuthCtx = {
   isAuthed: boolean;
-  login: (email: string, password: string) => Promise<void> | void;
+  login: (data: LoginInput) => Promise<void>;
   logout: () => void;
 };
+export const AuthContext = createContext<AuthCtx | null>(null);
 
-export const AuthContext = createContext<AuthContextType | null>(null);
-
-const AUTH_KEY = "auth_token";
-// const DEMO = { email: "demo@example.com", password: "1234" };
-
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAuthed, setIsAuthed] = useState<boolean>(() =>
-    Boolean(localStorage.getItem(AUTH_KEY)),
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [isAuthed, setIsAuthed] = useState<boolean>(
+    !!localStorage.getItem("auth_token"),
   );
 
-  const login = (email: string, password: string) => {
-    const parsed = loginSchema.safeParse({ email, password });
-    if (!parsed.success) throw parsed.error;
+  async function login(input: LoginInput) {
+    const parsed = loginSchema.safeParse(input);
+    if (!parsed.success) {
+      const msg =
+        parsed.error.issues[0]?.message ?? "Invalid email or password";
+      throw new Error(msg);
+    }
 
-    // const { email: e, password: p } = parsed.data;
-    // if (e !== DEMO.email || p !== DEMO.password) {
-    //   throw new Error("WRONG_EMAIL_OR_PASSWORD");
-    // }
-
-    localStorage.setItem(AUTH_KEY, "mock-token");
+    const { token } = await apiLogin(parsed.data.email, parsed.data.password);
+    localStorage.setItem("auth_token", token);
     setIsAuthed(true);
-  };
+  }
 
-  const logout = () => {
-    localStorage.removeItem(AUTH_KEY);
+  function logout() {
+    localStorage.removeItem("auth_token");
     setIsAuthed(false);
-  };
+  }
 
   const value = useMemo(() => ({ isAuthed, login, logout }), [isAuthed]);
-
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
