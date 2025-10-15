@@ -19,9 +19,13 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true,
-
-    "types": ["vitest/globals"]
+    "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "src/**/*.test.*",
+    "src/**/__tests__/**",
+    "src/setupTests.*",
+    "**/vitest.setup.*"
+  ]
 }
