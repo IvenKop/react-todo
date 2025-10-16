@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Todo, Filter } from "./types";
-import { getTodos, saveTodos, getFilter, saveFilter } from "./utils/storage";
-import { genId } from "./utils/id";
 import { useTranslation } from "react-i18next";
+import type { Filter } from "./types";
 
-import InfoMenu from "./components/InfoMenu";
 import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
 import TaskList from "./components/TaskList";
-import Footer from "./components/Footer";
+import InfoMenu from "./components/InfoMenu";
 import Pagination from "./components/Pagination";
+import Footer from "./components/Footer";
+
+import { useTodos } from "./hooks/useTodo";
 
 const FIRST_PAGE = 1;
 const PAGE_SIZE = 5;
@@ -27,31 +27,29 @@ function writePageToURL(nextPage: number) {
 }
 
 export default function App() {
-  const [todos, setTodos] = useState<Todo[]>(() => getTodos());
-  const [activeFilter, setActiveFilter] = useState<Filter>(() => getFilter());
-  const [page, setPage] = useState<number>(() => readPageFromURL());
-  const { t } = useTranslation();
+  const {
+    todos,
+    filter,
+    loading,
+    error,
+    counts,
+    add,
+    toggle,
+    edit,
+    remove,
+    clearCompleted,
+    changeFilter,
+    toggleAll,
+  } = useTodos();
 
-  const setFilter = (newFilter: Filter) => {
-    setActiveFilter(newFilter);
-    saveFilter(newFilter);
-    setPage(FIRST_PAGE);
-    writePageToURL(FIRST_PAGE);
-  };
+  const { t } = useTranslation();
+  const [page, setPage] = useState<number>(() => readPageFromURL());
 
   useEffect(() => {
     writePageToURL(page);
   }, [page]);
 
-  const visibleTodos = useMemo(() => {
-    if (!activeFilter || activeFilter === "all") return todos;
-    return todos.filter((t) =>
-      activeFilter === "active" ? !t.completed : t.completed,
-    );
-  }, [todos, activeFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(visibleTodos.length / PAGE_SIZE));
-
+  const totalPages = Math.max(1, Math.ceil(todos.length / PAGE_SIZE));
   if (page > totalPages) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -66,70 +64,80 @@ export default function App() {
   }
 
   const start = (page - 1) * PAGE_SIZE;
-  const pagedTodos = visibleTodos.slice(start, start + PAGE_SIZE);
+  const pagedTodos = useMemo(
+    () => todos.slice(start, start + PAGE_SIZE),
+    [todos, start],
+  );
 
-  const activeCount = useMemo(() => {
-    return activeFilter === "active"
-      ? visibleTodos.length
-      : todos.filter((t) => !t.completed).length;
-  }, [activeFilter, visibleTodos, todos]);
-
-  const handleClearCompleted = useCallback(() => {
-    setTodos((prev) => prev.filter((t) => !t.completed));
-  }, []);
-
-  useEffect(() => {
-    saveTodos(todos);
-  }, [todos]);
+  const isListEmpty = todos.length > 0;
+  const isAllSelected = isListEmpty && todos.every((t) => t.completed);
 
   function normalize(text: string): string {
     return text.trim().replace(/\s+/g, " ");
   }
 
-  const handleAdd = useCallback((text: string) => {
-    const n = normalize(text);
-    if (!n) return;
-    setTodos((prev) => {
-      if (prev.some((t) => normalize(t.text) === n)) return prev;
-      return [...prev, { id: genId(), text: n, completed: false }];
-    });
-  }, []);
+  const handleAdd = useCallback(
+    async (text: string) => {
+      const n = normalize(text);
+      if (!n) return;
+      const already = todos.some((t) => normalize(t.text) === n);
+      if (already) return;
+      await add(n);
+      setPage(FIRST_PAGE);
+      writePageToURL(FIRST_PAGE);
+    },
+    [add, todos],
+  );
 
-  const handleDelete = useCallback((id: string) => {
-    setTodos((prev) => prev.filter((t) => t.id !== id));
-  }, []);
+  const handleDelete = useCallback(
+    async (id: string) => {
+      await remove(id);
+    },
+    [remove],
+  );
 
-  const handleEdit = useCallback((id: string, text: string) => {
-    const cleaned = text.trim();
-    if (!cleaned) return;
-    setTodos((prev) => {
+  const handleEdit = useCallback(
+    async (id: string, text: string) => {
+      const cleaned = text.trim();
+      if (!cleaned) return;
       const n = normalize(cleaned);
-      if (prev.some((t) => t.id !== id && normalize(t.text) === n)) return prev;
-      return prev.map((t) => (t.id === id ? { ...t, text: cleaned } : t));
-    });
-  }, []);
+      const duplicate = todos.some(
+        (t) => t.id !== id && normalize(t.text) === n,
+      );
+      if (duplicate) return;
+      await edit(id, cleaned);
+    },
+    [edit, todos],
+  );
 
-  const handleToggle = useCallback((id: string) => {
-    setTodos((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)),
-    );
-  }, []);
+  const handleToggle = useCallback(
+    async (id: string) => {
+      await toggle(id);
+    },
+    [toggle],
+  );
 
-  const isListEmpty = todos.length > 0;
-  const isAllSelected = isListEmpty && todos.every((t) => t.completed);
+  const handleToggleAll = useCallback(async () => {
+    await toggleAll();
+  }, [toggleAll]);
 
-  const handleToggleAll = useCallback(() => {
-    setTodos((prev) => {
-      const allDone = prev.length > 0 && prev.every((t) => t.completed);
-      const makeCompleted = !allDone;
-      return prev.map((t) => ({ ...t, completed: makeCompleted }));
-    });
-  }, []);
+  const handleClearCompleted = useCallback(async () => {
+    await clearCompleted();
+  }, [clearCompleted]);
 
   const handlePageChange = useCallback((next: number) => {
     setPage(next);
     writePageToURL(next);
   }, []);
+
+  const setFilter = useCallback(
+    (f: Filter) => {
+      changeFilter(f);
+      setPage(FIRST_PAGE);
+      writePageToURL(FIRST_PAGE);
+    },
+    [changeFilter],
+  );
 
   return (
     <div className="min-h-screen">
@@ -143,16 +151,29 @@ export default function App() {
               isAllSelected={isAllSelected}
               onToggleAll={handleToggleAll}
             />
+
+            {loading && (
+              <div className="p-3 text-sm text-gray-500" aria-live="polite">
+                Loading…
+              </div>
+            )}
+            {error && (
+              <div className="p-3 text-sm text-red-600" role="alert">
+                {error}
+              </div>
+            )}
+
             <TaskList
               todos={pagedTodos}
               onDelete={handleDelete}
               onEdit={handleEdit}
               onToggle={handleToggle}
             />
+
             {todos.length > 0 && (
               <InfoMenu
-                activeCount={activeCount}
-                filter={activeFilter}
+                activeCount={counts.active}
+                filter={filter}
                 setFilter={setFilter}
                 onClearCompleted={handleClearCompleted}
               />
@@ -161,7 +182,7 @@ export default function App() {
         </div>
 
         <Pagination
-          total={visibleTodos.length}
+          total={todos.length}
           pageSize={PAGE_SIZE}
           currentPage={page}
           onPageChange={handlePageChange}
