@@ -35,7 +35,7 @@ export default function LoginPage() {
     }
 
     try {
-      await login(parsed.data.email, parsed.data.password);
+      await login({ email, password });
       navigate(redirectTo, { replace: true });
     } catch (err) {
       if (err instanceof Error && err.message === "WRONG_EMAIL_OR_PASSWORD") {
