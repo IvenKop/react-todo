@@ -1,12 +1,17 @@
 const BASE = import.meta.env.VITE_API_URL;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!BASE) throw new Error("API not configured");
+  if (!BASE) {
+    throw new Error("error conection");
+  }
   const res = await fetch(`${BASE}${path}`, {
     headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-    ...init
+    ...init,
   });
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(text || res.statusText);
+  }
   return res.json() as Promise<T>;
 }
 

@@ -6,7 +6,7 @@
     "module": "ESNext",
     "skipLibCheck": true,
     "strict": true,
-    "moduleResolution": "Bundler",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,

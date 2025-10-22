@@ -1,21 +1,18 @@
 export async function apiLogin(email: string, password: string) {
   if (!import.meta.env.VITE_API_URL) {
-    return { token: "mock-token-local", user: { id: "local", email } };
+    throw new Error("API URL is not configured");
   }
+
   const res = await fetch(`${import.meta.env.VITE_API_URL}/api/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password })
   });
 
-  const text = await res.text();
   if (!res.ok) {
-    try {
-      const { error } = JSON.parse(text);
-      throw new Error(error || res.statusText);
-    } catch {
-      throw new Error(text || res.statusText);
-    }
+    const { error } = await res.json().catch(() => ({ error: res.statusText }));
+    throw new Error(error || "WRONG_EMAIL_OR_PASSWORD");
   }
-  return JSON.parse(text) as { token: string; user: { id: string; email: string } };
+
+  return res.json() as Promise<{ token: string; user: { id: string; email: string } }>;
 }

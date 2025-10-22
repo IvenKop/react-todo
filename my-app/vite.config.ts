@@ -4,7 +4,10 @@ import { configDefaults } from "vitest/config";
 
 export default defineConfig({
   plugins: [react()],
-  base: "/react-todo/",
+  base: "/",
+  define: {
+    "process.env": {},
+  },
   test: {
     environment: "jsdom",
     setupFiles: "./src/setupTests.ts",
