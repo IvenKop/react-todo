@@ -8,6 +8,7 @@ import TaskList from "./components/TaskList";
 import InfoMenu from "./components/InfoMenu";
 import Pagination from "./components/Pagination";
 import Footer from "./components/Footer";
+import SocketDebug from "./components/SocketDebug";
 
 import { useTodos } from "./hooks/useTodo";
 
@@ -189,6 +190,7 @@ export default function App() {
         />
       </main>
       <Footer />
+      <SocketDebug />
     </div>
   );
 }
