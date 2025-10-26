@@ -1,43 +1,58 @@
 import { useEffect, useState } from "react";
 import { socket } from "../realtime/socket";
 
-export default function SocketDebug() {
+export default function SocketStatus() {
   const [connected, setConnected] = useState(socket.connected);
-  const [hello, setHello] = useState<string | null>(null);
+  const [lastHello, setLastHello] = useState<string | null>(null);
+  const [pinging, setPinging] = useState(false);
 
   useEffect(() => {
-    const onConnect = () => setConnected(true);
-    const onDisconnect = () => setConnected(false);
-    const onHello = (payload: { message: string; time: string }) => {
-      setHello(
-        `${payload.message} (${new Date(payload.time).toLocaleTimeString()})`,
+    const handleConnect = () => setConnected(true);
+    const handleDisconnect = () => setConnected(false);
+    const handleHello = (payload: { message: string; time: string }) => {
+      setLastHello(
+        `${payload.message} — ${new Date(payload.time).toLocaleTimeString()}`,
       );
+      setPinging(false);
     };
 
-    socket.on("connect", onConnect);
-    socket.on("disconnect", onDisconnect);
-    socket.on("hello", onHello);
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
+    socket.on("hello", handleHello);
 
     return () => {
-      socket.off("connect", onConnect);
-      socket.off("disconnect", onDisconnect);
-      socket.off("hello", onHello);
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
+      socket.off("hello", handleHello);
     };
   }, []);
 
+  const handlePing = () => {
+    setPinging(true);
+    socket.emit("ping", "Ping from client");
+  };
+
   return (
-    <div className="mt-4 rounded-xl border p-3 shadow">
+    <div className="mt-8 text-center text-sm text-gray-600">
       <div>
-        <b>Socket:</b> {connected ? "connected ✅" : "disconnected ⛔"}
+        <span
+          className={`mr-1 inline-block h-2 w-2 rounded-full ${
+            connected ? "bg-green-500" : "bg-red-500"
+          }`}
+        ></span>
+        {connected ? "Realtime connection active" : "Disconnected"}
       </div>
-      <div className="mt-2">
-        <b>Last hello:</b> {hello ?? "—"}
-      </div>
+      {lastHello && (
+        <div className="mt-1 text-gray-500">
+          Last response: <span className="font-medium">{lastHello}</span>
+        </div>
+      )}
       <button
-        className="mt-3 rounded-xl border px-3 py-1"
-        onClick={() => socket.emit("ping", "Ping from client")}
+        onClick={handlePing}
+        disabled={pinging || !connected}
+        className="mt-3 rounded-lg border border-gray-300 bg-white px-3 py-1 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
       >
-        Send ping
+        {pinging ? "Pinging..." : "Test connection"}
       </button>
     </div>
   );
