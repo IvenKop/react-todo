@@ -28,29 +28,35 @@ export default function SocketStatus() {
   }, []);
 
   const handlePing = () => {
+    if (!connected) return;
     setPinging(true);
     socket.emit("ping", "Ping from client");
   };
 
   return (
-    <div className="mt-8 text-center text-sm text-gray-600">
-      <div>
+    <div className="mt-10 flex flex-col items-center text-sm text-gray-600">
+      <div className="mb-1 flex items-center gap-2">
         <span
-          className={`mr-1 inline-block h-2 w-2 rounded-full ${
-            connected ? "bg-green-500" : "bg-red-500"
+          className={`inline-block h-2.5 w-2.5 rounded-full ${
+            connected ? "bg-green-500" : "bg-red-400"
           }`}
         ></span>
-        {connected ? "Realtime connection active" : "Disconnected"}
+        <span className="font-medium">
+          {connected ? "Realtime connection active" : "Disconnected"}
+        </span>
       </div>
+
       {lastHello && (
-        <div className="mt-1 text-gray-500">
-          Last response: <span className="font-medium">{lastHello}</span>
+        <div className="mb-3 text-gray-500">
+          <span className="font-medium">Last response:</span>{" "}
+          <span>{lastHello}</span>
         </div>
       )}
+
       <button
         onClick={handlePing}
         disabled={pinging || !connected}
-        className="mt-3 rounded-lg border border-gray-300 bg-white px-3 py-1 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+        className={`rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-gray-700 shadow-sm transition-all duration-150 hover:bg-gray-50 active:scale-[0.98] disabled:opacity-50`}
       >
         {pinging ? "Pinging..." : "Test connection"}
       </button>
