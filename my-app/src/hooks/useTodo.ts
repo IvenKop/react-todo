@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import type { Todo, Filter } from "../types";
 import {
   listTodos,
@@ -9,12 +9,26 @@ import {
   getFilter as loadFilter,
   saveFilter as persistFilter,
 } from "../api/todos";
+import { socket } from "../realtime/socket";
 
 export function useTodos() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [filter, setFilter] = useState<Filter>(() => loadFilter());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchList = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const items = await listTodos(filter);
+      setTodos(items);
+    } catch (e: any) {
+      setError(e?.message ?? "Failed to load todos");
+    } finally {
+      setLoading(false);
+    }
+  }, [filter]);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +48,55 @@ export function useTodos() {
       cancelled = true;
     };
   }, [filter]);
+
+  const matchesFilter = useCallback(
+    (t: Todo, f: Filter) => {
+      if (f === "all") return true;
+      if (f === "active") return !t.completed;
+      if (f === "completed") return t.completed;
+      return true;
+    },
+    []
+  );
+
+  useEffect(() => {
+    const onInvalidate = () => {
+      fetchList();
+    };
+
+    const onUpsert = (incoming: Todo) => {
+      setTodos((prev) => {
+        const fits = matchesFilter(incoming, filter);
+        const idx = prev.findIndex((x) => x.id === incoming.id);
+
+        if (!fits) {
+          if (idx === -1) return prev;
+          const copy = prev.slice();
+          copy.splice(idx, 1);
+          return copy;
+        }
+
+        if (idx === -1) return [incoming, ...prev];
+        const copy = prev.slice();
+        copy[idx] = { ...copy[idx], ...incoming };
+        return copy;
+      });
+    };
+
+    const onRemoved = ({ id }: { id: string }) => {
+      setTodos((prev) => prev.filter((t) => t.id !== id));
+    };
+
+    socket.on("todos:invalidate", onInvalidate);
+    socket.on("todo:upsert", onUpsert);
+    socket.on("todo:removed", onRemoved);
+
+    return () => {
+      socket.off("todos:invalidate", onInvalidate);
+      socket.off("todo:upsert", onUpsert);
+      socket.off("todo:removed", onRemoved);
+    };
+  }, [fetchList, matchesFilter, filter]);
 
   async function add(text: string) {
     const created = await apiAdd(text);
@@ -87,23 +150,22 @@ export function useTodos() {
     persistFilter(next);
     setFilter(next);
   }
-  
+
   async function toggleAll() {
-  const allDone = todos.length > 0 && todos.every((t) => t.completed);
-  const makeCompleted = !allDone;
+    const allDone = todos.length > 0 && todos.every((t) => t.completed);
+    const makeCompleted = !allDone;
 
-  setTodos((xs) => xs.map((t) => ({ ...t, completed: makeCompleted })));
+    setTodos((xs) => xs.map((t) => ({ ...t, completed: makeCompleted })));
 
-  try {
-    await Promise.all(
-      todos.map((t) => apiUpdate(t.id, { completed: makeCompleted }))
-    );
-  } catch {
-    const fresh = await listTodos(filter);
-    setTodos(fresh);
+    try {
+      await Promise.all(
+        todos.map((t) => apiUpdate(t.id, { completed: makeCompleted }))
+      );
+    } catch {
+      const fresh = await listTodos(filter);
+      setTodos(fresh);
+    }
   }
-}
-
 
   const counts = useMemo(() => {
     const active = todos.filter((t) => !t.completed).length;

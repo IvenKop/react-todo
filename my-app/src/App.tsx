@@ -9,6 +9,7 @@ import InfoMenu from "./components/InfoMenu";
 import Pagination from "./components/Pagination";
 import Footer from "./components/Footer";
 import SocketDebug from "./components/SocketDebug";
+import { Toast, useToast } from "./components/Toast";
 
 import { useTodos } from "./hooks/useTodo";
 
@@ -111,6 +112,8 @@ export default function App() {
     [edit, todos],
   );
 
+  const toast = useToast();
+
   const handleToggle = useCallback(
     async (id: string) => {
       await toggle(id);
@@ -190,6 +193,7 @@ export default function App() {
         />
       </main>
       <Footer />
+      <Toast message={toast.message} />
       <SocketDebug />
     </div>
   );
