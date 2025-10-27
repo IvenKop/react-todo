@@ -26,7 +26,7 @@ export function useToast() {
 
 export function ToastContainer({ messages }: { messages: ToastMessage[] }) {
   return (
-    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+    <div className="fixed bottom-[50px] right-[20px] z-50 flex flex-col">
       <AnimatePresence>
         {messages.map((m) => (
           <motion.div
@@ -35,13 +35,7 @@ export function ToastContainer({ messages }: { messages: ToastMessage[] }) {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 100 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
-            className={`select-none rounded-xl border px-4 py-2 text-sm font-medium shadow-lg backdrop-blur-md ${
-              m.type === "success"
-                ? "border-green-200 bg-green-50 text-green-800 dark:border-green-700 dark:bg-green-900 dark:text-green-100"
-                : m.type === "error"
-                  ? "border-red-200 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-900 dark:text-red-100"
-                  : "border-gray-200 bg-gray-50 text-gray-800 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100"
-            }`}
+            className={`m-[5px] select-none rounded-xl border-none p-[5px] text-sm font-medium shadow-[0_2px_5px_rgba(0,0,0,0.1),0_2px_10px_rgba(0,0,0,0.1)] shadow-lg backdrop-blur-md`}
           >
             {m.text}
           </motion.div>
