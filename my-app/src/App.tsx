@@ -9,7 +9,7 @@ import InfoMenu from "./components/InfoMenu";
 import Pagination from "./components/Pagination";
 import Footer from "./components/Footer";
 import SocketDebug from "./components/SocketDebug";
-import { Toast, useToast } from "./components/Toast";
+import { ToastContainer, useToast } from "./components/Toast";
 
 import { useTodos } from "./hooks/useTodo";
 
@@ -29,6 +29,7 @@ function writePageToURL(nextPage: number) {
 }
 
 export default function App() {
+  const toast = useToast();
   const {
     todos,
     filter,
@@ -42,7 +43,7 @@ export default function App() {
     clearCompleted,
     changeFilter,
     toggleAll,
-  } = useTodos();
+  } = useTodos(toast);
 
   const { t } = useTranslation();
   const [page, setPage] = useState<number>(() => readPageFromURL());
@@ -112,8 +113,6 @@ export default function App() {
     [edit, todos],
   );
 
-  const toast = useToast();
-
   const handleToggle = useCallback(
     async (id: string) => {
       await toggle(id);
@@ -155,7 +154,6 @@ export default function App() {
               isAllSelected={isAllSelected}
               onToggleAll={handleToggleAll}
             />
-
             {loading && (
               <div className="p-3 text-sm text-gray-500" aria-live="polite">
                 Loading…
@@ -166,14 +164,12 @@ export default function App() {
                 {error}
               </div>
             )}
-
             <TaskList
               todos={pagedTodos}
               onDelete={handleDelete}
               onEdit={handleEdit}
               onToggle={handleToggle}
             />
-
             {todos.length > 0 && (
               <InfoMenu
                 activeCount={counts.active}
@@ -184,7 +180,6 @@ export default function App() {
             )}
           </div>
         </div>
-
         <Pagination
           total={todos.length}
           pageSize={PAGE_SIZE}
@@ -193,7 +188,7 @@ export default function App() {
         />
       </main>
       <Footer />
-      <Toast message={toast.message} />
+      <ToastContainer messages={toast.messages} />
       <SocketDebug />
     </div>
   );

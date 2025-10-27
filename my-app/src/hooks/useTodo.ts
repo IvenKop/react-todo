@@ -11,7 +11,11 @@ import {
 } from "../api/todos";
 import { socket } from "../realtime/socket";
 
-export function useTodos() {
+interface ToastContext {
+  show: (msg: string, type?: "success" | "error" | "info") => void;
+}
+
+export function useTodos(toast?: ToastContext) {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [filter, setFilter] = useState<Filter>(() => loadFilter());
   const [loading, setLoading] = useState(false);
@@ -60,10 +64,7 @@ export function useTodos() {
   );
 
   useEffect(() => {
-    const onInvalidate = () => {
-      fetchList();
-    };
-
+    const onInvalidate = () => fetchList();
     const onUpsert = (incoming: Todo) => {
       setTodos((prev) => {
         const fits = matchesFilter(incoming, filter);
@@ -82,10 +83,8 @@ export function useTodos() {
         return copy;
       });
     };
-
-    const onRemoved = ({ id }: { id: string }) => {
+    const onRemoved = ({ id }: { id: string }) =>
       setTodos((prev) => prev.filter((t) => t.id !== id));
-    };
 
     socket.on("todos:invalidate", onInvalidate);
     socket.on("todo:upsert", onUpsert);
@@ -101,6 +100,7 @@ export function useTodos() {
   async function add(text: string) {
     const created = await apiAdd(text);
     setTodos((prev) => [created, ...prev]);
+    toast?.show("Task added", "success");
   }
 
   async function toggle(id: string) {
@@ -121,6 +121,7 @@ export function useTodos() {
     setTodos((xs) => xs.map((t) => (t.id === id ? { ...t, text } : t)));
     try {
       await apiUpdate(id, { text });
+      toast?.show("Task updated", "info");
     } catch {
       setTodos((xs) => xs.map((t) => (t.id === id ? prev : t)));
     }
@@ -131,6 +132,7 @@ export function useTodos() {
     setTodos((xs) => xs.filter((t) => t.id !== id));
     try {
       await apiDelete(id);
+      toast?.show("Task deleted", "success");
     } catch {
       setTodos(prev);
     }
@@ -154,7 +156,6 @@ export function useTodos() {
   async function toggleAll() {
     const allDone = todos.length > 0 && todos.every((t) => t.completed);
     const makeCompleted = !allDone;
-
     setTodos((xs) => xs.map((t) => ({ ...t, completed: makeCompleted })));
 
     try {
