@@ -34,14 +34,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export async function listTodos(filter: Filter = "all"): Promise<Todo[]> {
   if (!BASE) {
     const all = getTodos();
-    return filter === "all"
-      ? all
-      : filter === "active"
-      ? all.filter((t) => !t.completed)
-      : all.filter((t) => t.completed);
+    if (filter === "all") {
+      return all;
+    } else if (filter === "active") {
+      return all.filter((t) => !t.completed);
+    } else {
+      return all.filter((t) => t.completed);
+    }
   }
   const data = await request<{ items: Todo[] }>(
-    `/api/todos?filter=${filter}&limit=100`
+    `/api/todos?filter=${filter}&limit=100`,
   );
   return data.items;
 }
@@ -66,7 +68,7 @@ export async function addTodo(text: string): Promise<Todo> {
 
 export async function updateTodo(
   id: string,
-  patch: Partial<Pick<Todo, "text" | "completed">>
+  patch: Partial<Pick<Todo, "text" | "completed">>,
 ): Promise<Todo> {
   if (!BASE) {
     const all = getTodos();
@@ -100,7 +102,7 @@ export async function clearCompleted(): Promise<void> {
 
 export async function updateTodosBulk(
   patch: Partial<Pick<Todo, "text" | "completed">>,
-  ids?: string[]
+  ids?: string[],
 ): Promise<void> {
   if (!BASE) {
     const all = getTodos();
