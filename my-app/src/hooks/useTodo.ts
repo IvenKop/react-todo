@@ -92,10 +92,18 @@ export function useTodos(toast?: ToastContext) {
   }, [fetchList, matchesFilter, filter]);
 
   async function add(text: string) {
-    const created = await apiAdd(text);
-    setTodos((prev) => [created, ...prev]);
+  const created = await apiAdd(text);
+
+  if (socket.connected) {
     toast?.show("Task added", "success");
+    return;
   }
+
+  setTodos((prev) =>
+    prev.some((t) => t.id === created.id) ? prev : [created, ...prev]
+  );
+  toast?.show("Task added", "success");
+}
 
   async function toggle(id: string) {
     const prev = todos.find((t) => t.id === id);
