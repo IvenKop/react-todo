@@ -8,8 +8,10 @@ import {
   clearCompleted as apiClearCompleted,
   getFilter as loadFilter,
   saveFilter as persistFilter,
+  updateTodosBulk as apiUpdateBulk,
 } from "../api/todos";
 import { socket } from "../realtime/socket";
+import { EV } from "../realtime/events";
 
 interface ToastContext {
   show: (msg: string, type?: "success" | "error" | "info") => void;
@@ -35,65 +37,57 @@ export function useTodos(toast?: ToastContext) {
   }, [filter]);
 
   useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const items = await listTodos(filter);
-        if (!cancelled) setTodos(items);
-      } catch (e: any) {
-        if (!cancelled) setError(e?.message ?? "Failed to load todos");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [filter]);
+    fetchList();
+  }, [fetchList]);
 
-  const matchesFilter = useCallback(
-    (t: Todo, f: Filter) => {
-      if (f === "all") return true;
-      if (f === "active") return !t.completed;
-      if (f === "completed") return t.completed;
-      return true;
-    },
-    []
-  );
+  const matchesFilter = useCallback((t: Todo, f: Filter) => {
+    if (f === "all") return true;
+    if (f === "active") return !t.completed;
+    if (f === "completed") return t.completed;
+    return true;
+  }, []);
 
   useEffect(() => {
-    const onInvalidate = () => fetchList();
-    const onUpsert = (incoming: Todo) => {
+    const onCreated = (incoming: Todo) => {
+      if (!matchesFilter(incoming, filter)) return;
       setTodos((prev) => {
-        const fits = matchesFilter(incoming, filter);
-        const idx = prev.findIndex((x) => x.id === incoming.id);
+        if (prev.some((x) => x.id === incoming.id)) return prev;
+        return [incoming, ...prev];
+      });
+    };
 
+    const onUpdated = (incoming: Todo) => {
+      setTodos((prev) => {
+        const idx = prev.findIndex((x) => x.id === incoming.id);
+        const fits = matchesFilter(incoming, filter);
         if (!fits) {
           if (idx === -1) return prev;
           const copy = prev.slice();
           copy.splice(idx, 1);
           return copy;
         }
-
         if (idx === -1) return [incoming, ...prev];
         const copy = prev.slice();
         copy[idx] = { ...copy[idx], ...incoming };
         return copy;
       });
     };
+
     const onRemoved = ({ id }: { id: string }) =>
       setTodos((prev) => prev.filter((t) => t.id !== id));
 
-    socket.on("todos:invalidate", onInvalidate);
-    socket.on("todo:upsert", onUpsert);
-    socket.on("todo:removed", onRemoved);
+    const handleInvalidate = () => { void fetchList(); };
+
+    socket.on(EV.todos.invalidate, handleInvalidate);
+    socket.on(EV.todo.created, onCreated);
+    socket.on(EV.todo.updated, onUpdated);
+    socket.on(EV.todo.removed, onRemoved);
 
     return () => {
-      socket.off("todos:invalidate", onInvalidate);
-      socket.off("todo:upsert", onUpsert);
-      socket.off("todo:removed", onRemoved);
+      socket.off(EV.todos.invalidate, handleInvalidate);
+      socket.off(EV.todo.created, onCreated);
+      socket.off(EV.todo.updated, onUpdated);
+      socket.off(EV.todo.removed, onRemoved);
     };
   }, [fetchList, matchesFilter, filter]);
 
@@ -156,15 +150,13 @@ export function useTodos(toast?: ToastContext) {
   async function toggleAll() {
     const allDone = todos.length > 0 && todos.every((t) => t.completed);
     const makeCompleted = !allDone;
+    const snapshot = todos;
     setTodos((xs) => xs.map((t) => ({ ...t, completed: makeCompleted })));
-
     try {
-      await Promise.all(
-        todos.map((t) => apiUpdate(t.id, { completed: makeCompleted }))
-      );
+      await apiUpdateBulk({ completed: makeCompleted });
     } catch {
-      const fresh = await listTodos(filter);
-      setTodos(fresh);
+      setTodos(snapshot);
+      await fetchList();
     }
   }
 

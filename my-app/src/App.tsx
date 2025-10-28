@@ -9,7 +9,8 @@ import InfoMenu from "./components/InfoMenu";
 import Pagination from "./components/Pagination";
 import Footer from "./components/Footer";
 import SocketDebug from "./components/SocketDebug";
-import { ToastContainer, useToast } from "./components/Toast";
+import { ToastContainer } from "./components/Toast";
+import { useToast } from "./hooks/useToast";
 
 import { useTodos } from "./hooks/useTodo";
 

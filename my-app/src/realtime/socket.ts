@@ -1,17 +1,16 @@
 import { io, type Socket } from "socket.io-client";
+import type { Todo } from "../types";
+import { EV } from "./events";
 
-type TodoDTO = { id: string; text: string; completed: boolean };
+type ServerToClientEvents =
+  & Record<typeof EV.hello, (payload: { message: string; time: string }) => void>
+  & Record<typeof EV.todos.invalidate, () => void>
+  & Record<typeof EV.todo.created, (todo: Todo) => void>
+  & Record<typeof EV.todo.updated, (todo: Todo) => void>
+  & Record<typeof EV.todo.removed, (payload: { id: string }) => void>;
 
-type ServerToClientEvents = {
-  hello: (payload: { message: string; time: string }) => void;
-  "todos:invalidate": () => void;
-  "todo:upsert": (todo: TodoDTO) => void;
-  "todo:removed": (payload: { id: string }) => void;
-};
-
-type ClientToServerEvents = {
-  ping: (text: string) => void;
-};
+type ClientToServerEvents =
+  & Record<typeof EV.ping, (text: string) => void>;
 
 const URL = import.meta.env.VITE_API_URL as string;
 

@@ -34,12 +34,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export async function listTodos(filter: Filter = "all"): Promise<Todo[]> {
   if (!BASE) {
     const all = getTodos();
-    return filter === "all" ? all : filter === "active" ? all.filter(t => !t.completed) : all.filter(t => t.completed);
+    return filter === "all"
+      ? all
+      : filter === "active"
+      ? all.filter((t) => !t.completed)
+      : all.filter((t) => t.completed);
   }
-  const data = await request<{ items: Todo[] }>(`/api/todos?filter=${filter}&limit=100`);
+  const data = await request<{ items: Todo[] }>(
+    `/api/todos?filter=${filter}&limit=100`
+  );
   return data.items;
 }
-
 
 export async function addTodo(text: string): Promise<Todo> {
   if (!BASE) {
@@ -65,9 +70,7 @@ export async function updateTodo(
 ): Promise<Todo> {
   if (!BASE) {
     const all = getTodos();
-    const updated = all.map((t) =>
-      t.id === id ? { ...t, ...patch } : t
-    );
+    const updated = all.map((t) => (t.id === id ? { ...t, ...patch } : t));
     saveTodos(updated);
     return updated.find((t) => t.id === id)!;
   }
@@ -93,6 +96,25 @@ export async function clearCompleted(): Promise<void> {
     return;
   }
   await request("/api/todos", { method: "DELETE" });
+}
+
+export async function updateTodosBulk(
+  patch: Partial<Pick<Todo, "text" | "completed">>,
+  ids?: string[]
+): Promise<void> {
+  if (!BASE) {
+    const all = getTodos();
+    const next =
+      ids && ids.length > 0
+        ? all.map((t) => (ids.includes(t.id) ? { ...t, ...patch } : t))
+        : all.map((t) => ({ ...t, ...patch }));
+    saveTodos(next);
+    return;
+  }
+  await request<void>("/api/todos", {
+    method: "PATCH",
+    body: JSON.stringify({ ids, patch }),
+  });
 }
 
 export { getFilter, saveFilter };
