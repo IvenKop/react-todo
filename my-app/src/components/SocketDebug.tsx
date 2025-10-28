@@ -60,14 +60,14 @@ export default function SocketStatus() {
         />
         <h4 className="m-0 font-medium text-[rgb(184,63,69)]">
           {connected
-            ? t("realtime.connectionActive")
-            : t("realtime.disconnected")}
+            ? t("Realtime connection active")
+            : t("Realtime disconnected")}
         </h4>
       </div>
 
       {lastHello && (
         <div className="mb-[10px] mt-[7px] text-gray-500">
-          <span className="font-medium">{t("realtime.lastResponse")}:</span>{" "}
+          <span className="font-medium">{t("Realtime last response")}:</span>{" "}
           <span>{lastHello}</span>
         </div>
       )}
@@ -77,7 +77,7 @@ export default function SocketStatus() {
         disabled={pinging || !connected}
         className="cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-1.5 text-gray-700 shadow-sm transition-all duration-150 hover:bg-gray-50 active:scale-[0.98] disabled:opacity-50"
       >
-        {pinging ? t("realtime.pinging") : t("realtime.testConnection")}
+        {pinging ? t("realtime pinging") : t("realtime test connection")}
       </button>
     </div>
   );
