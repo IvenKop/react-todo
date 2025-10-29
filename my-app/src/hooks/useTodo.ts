@@ -18,6 +18,7 @@ interface ToastContext {
 }
 
 export function useTodos(toast?: ToastContext) {
+  const [allTodos, setAllTodos] = useState<Todo[]>([]);
   const [todos, setTodos] = useState<Todo[]>([]);
   const [filter, setFilter] = useState<Filter>(() => loadFilter());
   const [loading, setLoading] = useState(false);
@@ -27,8 +28,12 @@ export function useTodos(toast?: ToastContext) {
     setLoading(true);
     setError(null);
     try {
-      const items = await listTodos(filter);
-      setTodos(items);
+      const [allItems, filteredItems] = await Promise.all([
+        listTodos("all"),
+        filter === "all" ? Promise.resolve<Todo[]>([]) : listTodos(filter),
+      ]);
+      setAllTodos(allItems);
+      setTodos(filter === "all" ? allItems : filteredItems);
     } catch (e: any) {
       setError(e?.message ?? "Failed to load todos");
     } finally {
@@ -49,14 +54,21 @@ export function useTodos(toast?: ToastContext) {
 
   useEffect(() => {
     const onCreated = (incoming: Todo) => {
-      if (!matchesFilter(incoming, filter)) return;
-      setTodos((prev) => {
-        if (prev.some((x) => x.id === incoming.id)) return prev;
-        return [incoming, ...prev];
-      });
+      setAllTodos((prev) => (prev.some((x) => x.id === incoming.id) ? prev : [incoming, ...prev]));
+      if (matchesFilter(incoming, filter)) {
+        setTodos((prev) => (prev.some((x) => x.id === incoming.id) ? prev : [incoming, ...prev]));
+      }
     };
 
     const onUpdated = (incoming: Todo) => {
+      setAllTodos((prev) => {
+        const idx = prev.findIndex((x) => x.id === incoming.id);
+        if (idx === -1) return [incoming, ...prev];
+        const copy = prev.slice();
+        copy[idx] = { ...copy[idx], ...incoming };
+        return copy;
+      });
+
       setTodos((prev) => {
         const idx = prev.findIndex((x) => x.id === incoming.id);
         const fits = matchesFilter(incoming, filter);
@@ -73,10 +85,14 @@ export function useTodos(toast?: ToastContext) {
       });
     };
 
-    const onRemoved = ({ id }: { id: string }) =>
+    const onRemoved = ({ id }: { id: string }) => {
+      setAllTodos((prev) => prev.filter((t) => t.id !== id));
       setTodos((prev) => prev.filter((t) => t.id !== id));
+    };
 
-    const handleInvalidate = () => { void fetchList(); };
+    const handleInvalidate = () => {
+      void fetchList();
+    };
 
     socket.on(EV.todos.invalidate, handleInvalidate);
     socket.on(EV.todo.created, onCreated);
@@ -92,61 +108,74 @@ export function useTodos(toast?: ToastContext) {
   }, [fetchList, matchesFilter, filter]);
 
   async function add(text: string) {
-  const created = await apiAdd(text);
-
-  if (socket.connected) {
+    const created = await apiAdd(text);
+    if (!socket.connected) {
+      setAllTodos((prev) => (prev.some((t) => t.id === created.id) ? prev : [created, ...prev]));
+      if (matchesFilter(created, filter)) {
+        setTodos((prev) => (prev.some((t) => t.id === created.id) ? prev : [created, ...prev]));
+      }
+    }
     toast?.show("Task added", "success");
-    return;
   }
 
-  setTodos((prev) =>
-    prev.some((t) => t.id === created.id) ? prev : [created, ...prev]
-  );
-  toast?.show("Task added", "success");
-}
-
   async function toggle(id: string) {
-    const prev = todos.find((t) => t.id === id);
-    if (!prev) return;
-    const next = { completed: !prev.completed };
-    setTodos((xs) => xs.map((t) => (t.id === id ? { ...t, ...next } : t)));
+    const prevAll = allTodos.find((t) => t.id === id);
+    if (!prevAll) return;
+    const next = { completed: !prevAll.completed };
+
+    setAllTodos((xs) => xs.map((t) => (t.id === id ? { ...t, ...next } : t)));
+    setTodos((xs) => xs.filter((t) => (matchesFilter({ ...t, ...next }, filter) ? true : t.id !== id)).map((t) => (t.id === id ? { ...t, ...next } : t)));
     try {
       await apiUpdate(id, next);
     } catch {
-      setTodos((xs) => xs.map((t) => (t.id === id ? prev : t)));
+      setAllTodos((xs) => xs.map((t) => (t.id === id ? prevAll : t)));
+      setTodos((xs) => {
+        const was = prevAll;
+        const fits = matchesFilter(was, filter);
+        const fixed = xs.map((t) => (t.id === id ? was : t));
+        return fits ? fixed : fixed.filter((t) => t.id !== id);
+      });
     }
   }
 
   async function edit(id: string, text: string) {
-    const prev = todos.find((t) => t.id === id);
+    const prev = allTodos.find((t) => t.id === id);
     if (!prev) return;
+    setAllTodos((xs) => xs.map((t) => (t.id === id ? { ...t, text } : t)));
     setTodos((xs) => xs.map((t) => (t.id === id ? { ...t, text } : t)));
     try {
       await apiUpdate(id, { text });
       toast?.show("Task updated", "info");
     } catch {
+      setAllTodos((xs) => xs.map((t) => (t.id === id ? prev : t)));
       setTodos((xs) => xs.map((t) => (t.id === id ? prev : t)));
     }
   }
 
   async function remove(id: string) {
-    const prev = todos;
+    const prevAll = allTodos;
+    const prevFiltered = todos;
+    setAllTodos((xs) => xs.filter((t) => t.id !== id));
     setTodos((xs) => xs.filter((t) => t.id !== id));
     try {
       await apiDelete(id);
       toast?.show("Task deleted", "success");
     } catch {
-      setTodos(prev);
+      setAllTodos(prevAll);
+      setTodos(prevFiltered);
     }
   }
 
   async function clearCompleted() {
-    const prev = todos;
+    const prevAll = allTodos;
+    const prevFiltered = todos;
+    setAllTodos((xs) => xs.filter((t) => !t.completed));
     setTodos((xs) => xs.filter((t) => !t.completed));
     try {
       await apiClearCompleted();
     } catch {
-      setTodos(prev);
+      setAllTodos(prevAll);
+      setTodos(prevFiltered);
     }
   }
 
@@ -156,23 +185,32 @@ export function useTodos(toast?: ToastContext) {
   }
 
   async function toggleAll() {
-    const allDone = todos.length > 0 && todos.every((t) => t.completed);
+    const allDone = allTodos.length > 0 && allTodos.every((t) => t.completed);
     const makeCompleted = !allDone;
-    const snapshot = todos;
-    setTodos((xs) => xs.map((t) => ({ ...t, completed: makeCompleted })));
+    const snapAll = allTodos;
+    const snapFiltered = todos;
+
+    setAllTodos((xs) => xs.map((t) => ({ ...t, completed: makeCompleted })));
+    setTodos((xs) =>
+      xs
+        .map((t) => ({ ...t, completed: makeCompleted }))
+        .filter((t) => matchesFilter(t, filter)),
+    );
+
     try {
       await apiUpdateBulk({ completed: makeCompleted });
     } catch {
-      setTodos(snapshot);
+      setAllTodos(snapAll);
+      setTodos(snapFiltered);
       await fetchList();
     }
   }
 
   const counts = useMemo(() => {
-    const active = todos.filter((t) => !t.completed).length;
-    const completed = todos.length - active;
-    return { active, completed, total: todos.length };
-  }, [todos]);
+    const active = allTodos.filter((t) => !t.completed).length;
+    const completed = allTodos.length - active;
+    return { active, completed, total: allTodos.length };
+  }, [allTodos]);
 
   return {
     todos,

@@ -7,9 +7,7 @@ import { loginSchema } from "../validation/auth";
 
 type LoginInput = z.infer<typeof loginSchema>;
 const registerSchema = loginSchema
-  .extend({
-    confirmPassword: z.string(),
-  })
+  .extend({ confirmPassword: z.string() })
   .superRefine((data, ctx) => {
     if (!data.email.includes("@")) {
       ctx.addIssue({
@@ -27,28 +25,35 @@ const registerSchema = loginSchema
   });
 
 type RegisterInput = z.infer<typeof registerSchema>;
-type Mode = "login" | "register";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation() as Location & { state?: { from?: Location } };
   const redirectTo = location.state?.from?.pathname ?? "/";
-  const [mode, setMode] = useState<Mode>("login");
+  const isRegister = location.pathname.endsWith("/register");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const toggleShowPassword = () => setShowPassword((s) => !s);
   const toggleShowConfirmPassword = () => setShowConfirmPassword((s) => !s);
+
+  const onToggleMode = () => {
+    setError(null);
+    setConfirmPassword("");
+    navigate(isRegister ? "/login" : "/register", { replace: true });
+  };
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (mode === "login") {
+    if (!isRegister) {
       const parsed = loginSchema.safeParse({ email, password });
       if (!parsed.success) {
         const f = parsed.error.format() as z.ZodFormattedError<LoginInput>;
@@ -57,7 +62,6 @@ export default function LoginPage() {
         setError(first ?? "Validation error.");
         return;
       }
-
       try {
         await login({ email, password });
         navigate(redirectTo, { replace: true });
@@ -76,7 +80,6 @@ export default function LoginPage() {
       password,
       confirmPassword,
     });
-
     if (!parsed.success) {
       const f = parsed.error.format() as z.ZodFormattedError<RegisterInput>;
       const first =
@@ -87,9 +90,16 @@ export default function LoginPage() {
       setError(first ?? "Validation error.");
       return;
     }
-  };
 
-  const isRegister = mode === "register";
+    try {
+      await register({ email, password });
+      navigate(redirectTo, { replace: true });
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Registration failed. Try again.";
+      setError(msg);
+    }
+  };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#f5f5f5] p-[24px]">
@@ -274,11 +284,7 @@ export default function LoginPage() {
             <div className="mt-[16px]">
               <button
                 type="button"
-                onClick={() => {
-                  setMode((m) => (m === "login" ? "register" : "login"));
-                  setError(null);
-                  setConfirmPassword("");
-                }}
+                onClick={onToggleMode}
                 className="w-full cursor-pointer border border-[#dcdcdc] bg-white pb-[12px] pl-[20px] pr-[20px] pt-[12px] text-[14px] font-[400] text-[#4a4a4a] transition-[background-color,border-color,transform] duration-150 hover:bg-[#f7f7f7] active:translate-y-[1px]"
                 aria-label={
                   isRegister ? "Back to sign in" : "Switch to registration"

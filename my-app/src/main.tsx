@@ -1,28 +1,26 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "./i18n";
-import "./index.css";
-
 import { HashRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./auth/AuthContext";
-import ProtectedRoute from "./components/ProtectedRoute";
-
-import App from "./App";
-import LoginPage from "./pages/LoginPage";
+import "./index.css";
+import "./i18n";
+import App from "./App.tsx";
+import LoginPage from "./pages/LoginPage.tsx";
+import ProtectedRoute from "./components/ProtectedRoute.tsx";
+import { AuthProvider } from "./auth/AuthContext.tsx";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <HashRouter>
-      <AuthProvider>
+    <AuthProvider>
+      <HashRouter>
         <Routes>
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<App />} />
           </Route>
-
           <Route path="/login" element={<LoginPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/register" element={<LoginPage />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-      </AuthProvider>
-    </HashRouter>
+      </HashRouter>
+    </AuthProvider>
   </React.StrictMode>,
 );
