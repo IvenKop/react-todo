@@ -1,4 +1,4 @@
-const BASE = import.meta.env.VITE_API_URL;
+const BASE_URL = import.meta.env.VITE_API_URL;
 
 export type AuthResponse = {
   token: string;
@@ -8,8 +8,8 @@ export type AuthResponse = {
 };
 
 export async function apiLogin(email: string, password: string) {
-  if (!BASE) throw new Error("API URL is not configured");
-  const res = await fetch(`${BASE}/api/login`, {
+  if (!BASE_URL) throw new Error("API URL is not configured");
+  const res = await fetch(`${BASE_URL}/api/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password })
@@ -22,8 +22,8 @@ export async function apiLogin(email: string, password: string) {
 }
 
 export async function apiRegister(email: string, password: string) {
-  if (!BASE) throw new Error("API URL is not configured");
-  const res = await fetch(`${BASE}/api/register`, {
+  if (!BASE_URL) throw new Error("API URL is not configured");
+  const res = await fetch(`${BASE_URL}/api/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password })

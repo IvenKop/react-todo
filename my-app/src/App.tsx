@@ -76,10 +76,6 @@ export default function App() {
   const isListEmpty = todos.length > 0;
   const isAllSelected = isListEmpty && todos.every((t) => t.completed);
 
-  // ✅ Показывать InfoMenu только если есть хоть какие-то задачи
-  const hasAnyTodos =
-    Number(counts?.active ?? 0) + Number((counts as any)?.completed ?? 0) > 0;
-
   function normalize(text: string): string {
     return text.trim().replace(/\s+/g, " ");
   }
@@ -175,7 +171,7 @@ export default function App() {
               onEdit={handleEdit}
               onToggle={handleToggle}
             />
-            {hasAnyTodos && (
+            {isListEmpty && (
               <InfoMenu
                 activeCount={counts.active}
                 filter={filter}
