@@ -171,7 +171,7 @@ export default function App() {
               onEdit={handleEdit}
               onToggle={handleToggle}
             />
-            {todos.length > 0 && (
+            {isListEmpty && (
               <InfoMenu
                 activeCount={counts.active}
                 filter={filter}
