@@ -1,17 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Filter } from "./types";
-
 import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
 import TaskList from "./components/TaskList";
 import InfoMenu from "./components/InfoMenu";
 import Pagination from "./components/Pagination";
 import Footer from "./components/Footer";
-import SocketDebug from "./components/SocketDebug";
 import { ToastContainer } from "./components/Toast";
 import { useToast } from "./hooks/useToast";
-
 import { useTodos } from "./hooks/useTodo";
 
 const FIRST_PAGE = 1;
@@ -31,11 +28,9 @@ function writePageToURL(nextPage: number) {
 
 export default function App() {
   const toast = useToast();
-
   const {
     todos,
     filter,
-    loading,
     error,
     counts,
     add,
@@ -45,7 +40,7 @@ export default function App() {
     clearCompleted,
     changeFilter,
     toggleAll,
-  } = useTodos();
+  } = useTodos({ toast });
 
   const { t } = useTranslation();
   const [page, setPage] = useState<number>(() => readPageFromURL());
@@ -74,8 +69,8 @@ export default function App() {
     [todos, start],
   );
 
-  const isListEmpty = todos.length > 0;
-  const isAllSelected = isListEmpty && todos.every((t) => t.completed);
+  const hasAnyTasks = counts.total > 0;
+  const isAllSelected = hasAnyTasks && todos.every((t) => t.completed);
 
   function normalize(text: string): string {
     return text.trim().replace(/\s+/g, " ");
@@ -152,15 +147,10 @@ export default function App() {
           <div className="relative z-0 bg-[rgb(246,246,246)] shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)]">
             <TaskInput
               onAdd={handleAdd}
-              isListEmpty={isListEmpty}
+              isListEmpty={hasAnyTasks}
               isAllSelected={isAllSelected}
               onToggleAll={handleToggleAll}
             />
-            {loading && (
-              <div className="p-3 text-sm text-gray-500" aria-live="polite">
-                Loading…
-              </div>
-            )}
             {error && (
               <div className="p-3 text-sm text-red-600" role="alert">
                 {error}
@@ -172,7 +162,7 @@ export default function App() {
               onEdit={handleEdit}
               onToggle={handleToggle}
             />
-            {isListEmpty && (
+            {hasAnyTasks && (
               <InfoMenu
                 activeCount={counts.active}
                 filter={filter}
@@ -191,7 +181,6 @@ export default function App() {
       </main>
       <Footer />
       <ToastContainer messages={toast.messages} />
-      <SocketDebug />
     </div>
   );
 }

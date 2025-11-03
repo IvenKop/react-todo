@@ -15,81 +15,97 @@ import { EV } from "../realtime/events";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "../lib/queryKeys";
 
-export function useTodos() {
+type ToastApi = { show: (text: string, type?: "success" | "error" | "info") => void };
+
+export function useTodos(opts?: { toast?: ToastApi }) {
+  const toast = opts?.toast;
   const qc = useQueryClient();
   const [filter, setFilter] = useState<Filter>(loadFilter());
 
-  const { data, isLoading, isError, error } = useQuery({
-    queryKey: qk.todos(filter),
-    queryFn: () => listTodos(filter)
+  const { data: all = [], isLoading, isError, error } = useQuery({
+    queryKey: qk.todos("all"),
+    queryFn: () => listTodos("all")
   });
 
-  const todos = data ?? [];
+  const todos = useMemo(() => {
+    if (filter === "all") return all;
+    if (filter === "active") return all.filter((t) => !t.completed);
+    return all.filter((t) => t.completed);
+  }, [all, filter]);
 
   const counts = useMemo(() => {
-    const active = todos.filter((t) => !t.completed).length;
-    const completed = todos.length - active;
-    return { total: todos.length, active, completed };
-  }, [todos]);
+    const total = all.length;
+    const active = all.filter((t) => !t.completed).length;
+    const completed = total - active;
+    return { total, active, completed };
+  }, [all]);
+
+  const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
+  const invalidateAll = () => qc.invalidateQueries({ queryKey: qk.todos("all") });
 
   const addMut = useMutation({
     mutationFn: (text: string) => apiAdd(text),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.todos(filter) });
-    }
+      invalidateAll();
+      toast?.show("Task added", "success");
+    },
+    onError: (e) => toast?.show(err(e), "error")
   });
 
   const updateMut = useMutation({
     mutationFn: (args: { id: string; patch: Partial<Pick<Todo, "text" | "completed">> }) =>
       apiUpdate(args.id, args.patch),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.todos(filter) });
-    }
+      invalidateAll();
+      toast?.show("Task updated", "success");
+    },
+    onError: (e) => toast?.show(err(e), "error")
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => apiDelete(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.todos(filter) });
-    }
+      invalidateAll();
+      toast?.show("Task deleted", "info");
+    },
+    onError: (e) => toast?.show(err(e), "error")
   });
 
   const clearMut = useMutation({
     mutationFn: () => apiClearCompleted(),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.todos(filter) });
-    }
+      invalidateAll();
+      toast?.show("Completed cleared", "info");
+    },
+    onError: (e) => toast?.show(err(e), "error")
   });
 
   const bulkMut = useMutation({
     mutationFn: (args: { patch: Partial<Pick<Todo, "text" | "completed">>; ids?: string[] }) =>
       apiUpdateBulk(args.patch, args.ids),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: qk.todos(filter) });
-    }
+      invalidateAll();
+      toast?.show("Tasks updated", "success");
+    },
+    onError: (e) => toast?.show(err(e), "error")
   });
+
   useEffect(() => {
-    const inv = () => qc.invalidateQueries({ queryKey: qk.todos(filter) });
+    const inv = () => invalidateAll();
     const onCreated = (todo: Todo) => {
-      qc.setQueryData<Todo[]>(qk.todos(filter), (prev) => {
-        if (!prev) return prev;
-        if (
-          (filter === "all") ||
-          (filter === "active" && !todo.completed) ||
-          (filter === "completed" && todo.completed)
-        ) {
-          return [todo, ...prev];
-        }
-        return prev;
+      qc.setQueryData<Todo[]>(qk.todos("all"), (prev) => {
+        if (!prev) return [todo];
+        if (prev.some((t) => t.id === todo.id)) return prev;
+        return [todo, ...prev];
       });
     };
     const onUpdated = (todo: Todo) => {
-      qc.setQueryData<Todo[]>(qk.todos(filter), (prev) =>
+      qc.setQueryData<Todo[]>(qk.todos("all"), (prev) =>
         prev ? prev.map((t) => (t.id === todo.id ? todo : t)) : prev
       );
     };
     const onRemoved = ({ id }: { id: string }) => {
-      qc.setQueryData<Todo[]>(qk.todos(filter), (prev) =>
+      qc.setQueryData<Todo[]>(qk.todos("all"), (prev) =>
         prev ? prev.filter((t) => t.id !== id) : prev
       );
     };
@@ -105,7 +121,7 @@ export function useTodos() {
       socket.off(EV.todo.updated, onUpdated);
       socket.off(EV.todo.removed, onRemoved);
     };
-  }, [qc, filter]);
+  }, [qc]);
 
   const add = useCallback(async (text: string) => {
     if (!text.trim()) return;
@@ -113,10 +129,10 @@ export function useTodos() {
   }, [addMut]);
 
   const toggle = useCallback(async (id: string) => {
-    const current = todos.find((t) => t.id === id);
+    const current = all.find((t) => t.id === id);
     if (!current) return;
     await updateMut.mutateAsync({ id, patch: { completed: !current.completed } });
-  }, [todos, updateMut]);
+  }, [all, updateMut]);
 
   const edit = useCallback(async (id: string, text: string) => {
     const t = text.trim();
@@ -138,13 +154,18 @@ export function useTodos() {
   }, []);
 
   const toggleAll = useCallback(async () => {
-    if (todos.length === 0) return;
-    const allCompleted = todos.every((t) => t.completed);
+    if (all.length === 0) return;
+    const allCompleted = all.every((t) => t.completed);
     await bulkMut.mutateAsync({ patch: { completed: !allCompleted } });
-  }, [todos, bulkMut]);
+  }, [all, bulkMut]);
 
   const loading =
-    isLoading || addMut.isPending || updateMut.isPending || deleteMut.isPending || clearMut.isPending || bulkMut.isPending;
+    isLoading ||
+    addMut.isPending ||
+    updateMut.isPending ||
+    deleteMut.isPending ||
+    clearMut.isPending ||
+    bulkMut.isPending;
 
   return {
     todos,

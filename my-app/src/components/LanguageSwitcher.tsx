@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 export default function LanguageSwitcher() {
   const { i18n } = useTranslation();
   const value = i18n.language?.startsWith("ru") ? "ru" : "en";
+  const label = value === "ru" ? "RU" : "EN";
 
   const onChange = (v: string) => {
     i18n.changeLanguage(v);
@@ -16,21 +17,30 @@ export default function LanguageSwitcher() {
     <Select.Root value={value} onValueChange={onChange}>
       <Select.Trigger
         aria-label="Change language"
-        className="group inline-flex h-[36px] w-[36px] items-center justify-center rounded-full text-[#374151] transition-[background-color,transform] duration-[150ms] hover:bg-[#f6f6f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b83f45]/30 active:scale-[1.02]"
+        className="inline-flex h-[36px] items-center gap-[8px] rounded-[18px] px-[12px] text-[14px] text-[#1f2937] transition-all duration-[150ms] hover:bg-[#f6f6f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b83f45]/30 active:scale-[1.01]"
       >
-        <Select.Icon
-          aria-hidden="true"
-          className="transition-transform duration-150 data-[state=open]:rotate-180"
+        <svg
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
+          <circle cx="12" cy="12" r="10" />
+          <path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20" />
+        </svg>
+        <span className="hidden font-medium sm:inline">{label}</span>
+        <Select.Icon className="ml-[4px] transition-transform duration-[150ms] data-[state=open]:rotate-180">
           <svg
-            width="16"
-            height="16"
+            width="14"
+            height="14"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
           >
             <path d="M6 9l6 6 6-6" />
           </svg>
@@ -42,23 +52,27 @@ export default function LanguageSwitcher() {
           side="bottom"
           align="end"
           position="popper"
-          sideOffset={6}
-          className="z-[60] origin-top-right scale-95 rounded-[12px] border border-[#e1e1e1] bg-white p-[6px] opacity-0 shadow-xl transition-[opacity,transform] duration-[150ms] data-[state=open]:scale-100 data-[state=open]:opacity-100"
+          sideOffset={8}
+          avoidCollisions
+          collisionPadding={10}
+          className="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in data-[state=closed]:fade-out z-[60] rounded-[12px] border-[1px] border-[#e1e1e1] bg-[#ffffff] shadow-[0_4px_16px_rgba(0,0,0,0.08)] backdrop-blur-[8px]"
         >
-          <Select.Viewport className="min-w-[160px]">
+          <Select.Viewport className="min-w-[160px] p-[4px]">
             <Select.Item
               value="en"
-              className="cursor-pointer select-none rounded-[8px] px-[12px] py-[8px] text-[14px] text-[#111] outline-none hover:bg-[#f6f6f6] focus:bg-[#f6f6f6]"
+              className="cursor-pointer select-none rounded-[8px] px-[12px] py-[8px] text-[14px] text-[#111] outline-none transition-colors data-[highlighted]:bg-[#f6f6f6]"
             >
               <Select.ItemText>English</Select.ItemText>
             </Select.Item>
+
             <Select.Item
               value="ru"
-              className="cursor-pointer select-none rounded-[8px] px-[12px] py-[8px] text-[14px] text-[#111] outline-none hover:bg-[#f6f6f6] focus:bg-[#f6f6f6]"
+              className="cursor-pointer select-none rounded-[8px] px-[12px] py-[8px] text-[14px] text-[#111] outline-none transition-colors data-[highlighted]:bg-[#f6f6f6]"
             >
               <Select.ItemText>Русский</Select.ItemText>
             </Select.Item>
           </Select.Viewport>
+          <Select.Arrow className="fill-white" />
         </Select.Content>
       </Select.Portal>
     </Select.Root>
