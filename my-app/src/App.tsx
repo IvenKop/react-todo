@@ -31,6 +31,7 @@ function writePageToURL(nextPage: number) {
 
 export default function App() {
   const toast = useToast();
+
   const {
     todos,
     filter,
@@ -44,7 +45,7 @@ export default function App() {
     clearCompleted,
     changeFilter,
     toggleAll,
-  } = useTodos(toast);
+  } = useTodos();
 
   const { t } = useTranslation();
   const [page, setPage] = useState<number>(() => readPageFromURL());

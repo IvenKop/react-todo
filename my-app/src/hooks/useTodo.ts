@@ -8,215 +8,149 @@ import {
   clearCompleted as apiClearCompleted,
   getFilter as loadFilter,
   saveFilter as persistFilter,
-  updateTodosBulk as apiUpdateBulk,
+  updateTodosBulk as apiUpdateBulk
 } from "../api/todos";
 import { socket } from "../realtime/socket";
 import { EV } from "../realtime/events";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { qk } from "../lib/queryKeys";
 
-interface ToastContext {
-  show: (msg: string, type?: "success" | "error" | "info") => void;
-}
+export function useTodos() {
+  const qc = useQueryClient();
+  const [filter, setFilter] = useState<Filter>(loadFilter());
 
-export function useTodos(toast?: ToastContext) {
-  const [allTodos, setAllTodos] = useState<Todo[]>([]);
-  const [todos, setTodos] = useState<Todo[]>([]);
-  const [filter, setFilter] = useState<Filter>(() => loadFilter());
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: qk.todos(filter),
+    queryFn: () => listTodos(filter)
+  });
 
-  const fetchList = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [allItems, filteredItems] = await Promise.all([
-        listTodos("all"),
-        filter === "all" ? Promise.resolve<Todo[]>([]) : listTodos(filter),
-      ]);
-      setAllTodos(allItems);
-      setTodos(filter === "all" ? allItems : filteredItems);
-    } catch (e: any) {
-      setError(e?.message ?? "Failed to load todos");
-    } finally {
-      setLoading(false);
+  const todos = data ?? [];
+
+  const counts = useMemo(() => {
+    const active = todos.filter((t) => !t.completed).length;
+    const completed = todos.length - active;
+    return { total: todos.length, active, completed };
+  }, [todos]);
+
+  const addMut = useMutation({
+    mutationFn: (text: string) => apiAdd(text),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.todos(filter) });
     }
-  }, [filter]);
+  });
 
+  const updateMut = useMutation({
+    mutationFn: (args: { id: string; patch: Partial<Pick<Todo, "text" | "completed">> }) =>
+      apiUpdate(args.id, args.patch),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.todos(filter) });
+    }
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => apiDelete(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.todos(filter) });
+    }
+  });
+
+  const clearMut = useMutation({
+    mutationFn: () => apiClearCompleted(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.todos(filter) });
+    }
+  });
+
+  const bulkMut = useMutation({
+    mutationFn: (args: { patch: Partial<Pick<Todo, "text" | "completed">>; ids?: string[] }) =>
+      apiUpdateBulk(args.patch, args.ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: qk.todos(filter) });
+    }
+  });
   useEffect(() => {
-    fetchList();
-  }, [fetchList]);
-
-  const matchesFilter = useCallback((t: Todo, f: Filter) => {
-    if (f === "all") return true;
-    if (f === "active") return !t.completed;
-    if (f === "completed") return t.completed;
-    return true;
-  }, []);
-
-  useEffect(() => {
-    const onCreated = (incoming: Todo) => {
-      setAllTodos((prev) => (prev.some((x) => x.id === incoming.id) ? prev : [incoming, ...prev]));
-      if (matchesFilter(incoming, filter)) {
-        setTodos((prev) => (prev.some((x) => x.id === incoming.id) ? prev : [incoming, ...prev]));
-      }
-    };
-
-    const onUpdated = (incoming: Todo) => {
-      setAllTodos((prev) => {
-        const idx = prev.findIndex((x) => x.id === incoming.id);
-        if (idx === -1) return [incoming, ...prev];
-        const copy = prev.slice();
-        copy[idx] = { ...copy[idx], ...incoming };
-        return copy;
-      });
-
-      setTodos((prev) => {
-        const idx = prev.findIndex((x) => x.id === incoming.id);
-        const fits = matchesFilter(incoming, filter);
-        if (!fits) {
-          if (idx === -1) return prev;
-          const copy = prev.slice();
-          copy.splice(idx, 1);
-          return copy;
+    const inv = () => qc.invalidateQueries({ queryKey: qk.todos(filter) });
+    const onCreated = (todo: Todo) => {
+      qc.setQueryData<Todo[]>(qk.todos(filter), (prev) => {
+        if (!prev) return prev;
+        if (
+          (filter === "all") ||
+          (filter === "active" && !todo.completed) ||
+          (filter === "completed" && todo.completed)
+        ) {
+          return [todo, ...prev];
         }
-        if (idx === -1) return [incoming, ...prev];
-        const copy = prev.slice();
-        copy[idx] = { ...copy[idx], ...incoming };
-        return copy;
+        return prev;
       });
     };
-
+    const onUpdated = (todo: Todo) => {
+      qc.setQueryData<Todo[]>(qk.todos(filter), (prev) =>
+        prev ? prev.map((t) => (t.id === todo.id ? todo : t)) : prev
+      );
+    };
     const onRemoved = ({ id }: { id: string }) => {
-      setAllTodos((prev) => prev.filter((t) => t.id !== id));
-      setTodos((prev) => prev.filter((t) => t.id !== id));
+      qc.setQueryData<Todo[]>(qk.todos(filter), (prev) =>
+        prev ? prev.filter((t) => t.id !== id) : prev
+      );
     };
 
-    const handleInvalidate = () => {
-      void fetchList();
-    };
-
-    socket.on(EV.todos.invalidate, handleInvalidate);
+    socket.on(EV.todos.invalidate, inv);
     socket.on(EV.todo.created, onCreated);
     socket.on(EV.todo.updated, onUpdated);
     socket.on(EV.todo.removed, onRemoved);
 
     return () => {
-      socket.off(EV.todos.invalidate, handleInvalidate);
+      socket.off(EV.todos.invalidate, inv);
       socket.off(EV.todo.created, onCreated);
       socket.off(EV.todo.updated, onUpdated);
       socket.off(EV.todo.removed, onRemoved);
     };
-  }, [fetchList, matchesFilter, filter]);
+  }, [qc, filter]);
 
-  async function add(text: string) {
-    const created = await apiAdd(text);
-    if (!socket.connected) {
-      setAllTodos((prev) => (prev.some((t) => t.id === created.id) ? prev : [created, ...prev]));
-      if (matchesFilter(created, filter)) {
-        setTodos((prev) => (prev.some((t) => t.id === created.id) ? prev : [created, ...prev]));
-      }
-    }
-    toast?.show("Task added", "success");
-  }
+  const add = useCallback(async (text: string) => {
+    if (!text.trim()) return;
+    await addMut.mutateAsync(text.trim());
+  }, [addMut]);
 
-  async function toggle(id: string) {
-    const prevAll = allTodos.find((t) => t.id === id);
-    if (!prevAll) return;
-    const next = { completed: !prevAll.completed };
+  const toggle = useCallback(async (id: string) => {
+    const current = todos.find((t) => t.id === id);
+    if (!current) return;
+    await updateMut.mutateAsync({ id, patch: { completed: !current.completed } });
+  }, [todos, updateMut]);
 
-    setAllTodos((xs) => xs.map((t) => (t.id === id ? { ...t, ...next } : t)));
-    setTodos((xs) => xs.filter((t) => (matchesFilter({ ...t, ...next }, filter) ? true : t.id !== id)).map((t) => (t.id === id ? { ...t, ...next } : t)));
-    try {
-      await apiUpdate(id, next);
-    } catch {
-      setAllTodos((xs) => xs.map((t) => (t.id === id ? prevAll : t)));
-      setTodos((xs) => {
-        const was = prevAll;
-        const fits = matchesFilter(was, filter);
-        const fixed = xs.map((t) => (t.id === id ? was : t));
-        return fits ? fixed : fixed.filter((t) => t.id !== id);
-      });
-    }
-  }
+  const edit = useCallback(async (id: string, text: string) => {
+    const t = text.trim();
+    if (!t) return;
+    await updateMut.mutateAsync({ id, patch: { text: t } });
+  }, [updateMut]);
 
-  async function edit(id: string, text: string) {
-    const prev = allTodos.find((t) => t.id === id);
-    if (!prev) return;
-    setAllTodos((xs) => xs.map((t) => (t.id === id ? { ...t, text } : t)));
-    setTodos((xs) => xs.map((t) => (t.id === id ? { ...t, text } : t)));
-    try {
-      await apiUpdate(id, { text });
-      toast?.show("Task updated", "info");
-    } catch {
-      setAllTodos((xs) => xs.map((t) => (t.id === id ? prev : t)));
-      setTodos((xs) => xs.map((t) => (t.id === id ? prev : t)));
-    }
-  }
+  const remove = useCallback(async (id: string) => {
+    await deleteMut.mutateAsync(id);
+  }, [deleteMut]);
 
-  async function remove(id: string) {
-    const prevAll = allTodos;
-    const prevFiltered = todos;
-    setAllTodos((xs) => xs.filter((t) => t.id !== id));
-    setTodos((xs) => xs.filter((t) => t.id !== id));
-    try {
-      await apiDelete(id);
-      toast?.show("Task deleted", "success");
-    } catch {
-      setAllTodos(prevAll);
-      setTodos(prevFiltered);
-    }
-  }
+  const clearCompleted = useCallback(async () => {
+    await clearMut.mutateAsync();
+  }, [clearMut]);
 
-  async function clearCompleted() {
-    const prevAll = allTodos;
-    const prevFiltered = todos;
-    setAllTodos((xs) => xs.filter((t) => !t.completed));
-    setTodos((xs) => xs.filter((t) => !t.completed));
-    try {
-      await apiClearCompleted();
-    } catch {
-      setAllTodos(prevAll);
-      setTodos(prevFiltered);
-    }
-  }
-
-  function changeFilter(next: Filter) {
-    persistFilter(next);
+  const changeFilter = useCallback((next: Filter) => {
     setFilter(next);
-  }
+    persistFilter(next);
+  }, []);
 
-  async function toggleAll() {
-    const allDone = allTodos.length > 0 && allTodos.every((t) => t.completed);
-    const makeCompleted = !allDone;
-    const snapAll = allTodos;
-    const snapFiltered = todos;
+  const toggleAll = useCallback(async () => {
+    if (todos.length === 0) return;
+    const allCompleted = todos.every((t) => t.completed);
+    await bulkMut.mutateAsync({ patch: { completed: !allCompleted } });
+  }, [todos, bulkMut]);
 
-    setAllTodos((xs) => xs.map((t) => ({ ...t, completed: makeCompleted })));
-    setTodos((xs) =>
-      xs
-        .map((t) => ({ ...t, completed: makeCompleted }))
-        .filter((t) => matchesFilter(t, filter)),
-    );
-
-    try {
-      await apiUpdateBulk({ completed: makeCompleted });
-    } catch {
-      setAllTodos(snapAll);
-      setTodos(snapFiltered);
-      await fetchList();
-    }
-  }
-
-  const counts = useMemo(() => {
-    const active = allTodos.filter((t) => !t.completed).length;
-    const completed = allTodos.length - active;
-    return { active, completed, total: allTodos.length };
-  }, [allTodos]);
+  const loading =
+    isLoading || addMut.isPending || updateMut.isPending || deleteMut.isPending || clearMut.isPending || bulkMut.isPending;
 
   return {
     todos,
     filter,
     loading,
-    error,
+    error: isError ? (error instanceof Error ? error.message : "Unknown error") : null,
     counts,
     add,
     toggle,
@@ -224,6 +158,6 @@ export function useTodos(toast?: ToastContext) {
     remove,
     clearCompleted,
     changeFilter,
-    toggleAll,
+    toggleAll
   };
 }
