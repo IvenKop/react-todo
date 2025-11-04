@@ -15,7 +15,9 @@ import { qk } from "../lib/queryKeys";
 import { useTranslation } from "react-i18next";
 import { errorText } from "../lib/erros";
 
-type ToastApi = { show: (text: string, type?: "success" | "error" | "info") => void };
+type ToastApi = {
+  show: (text: string, type?: "success" | "error" | "info") => void;
+};
 
 type UseTodosOpts = {
   toast?: ToastApi;
@@ -71,11 +73,11 @@ export function useTodos(opts: UseTodosOpts) {
   const invalidateTodos = useCallback(
     (toastKey?: string, type?: "success" | "error" | "info") => {
       (["all", "active", "completed"] as const).forEach((f) =>
-        qc.invalidateQueries({ queryKey: qk.todos(f) })
+        qc.invalidateQueries({ queryKey: qk.todos(f) }),
       );
       if (toastKey) toast?.show(t(toastKey), type);
     },
-    [qc, t, toast]
+    [qc, t, toast],
   );
 
   const addMut = useMutation({
@@ -85,8 +87,10 @@ export function useTodos(opts: UseTodosOpts) {
   });
 
   const updateMut = useMutation({
-    mutationFn: (args: { id: string; patch: Partial<Pick<Todo, "text" | "completed">> }) =>
-      apiUpdate(args.id, args.patch),
+    mutationFn: (args: {
+      id: string;
+      patch: Partial<Pick<Todo, "text" | "completed">>;
+    }) => apiUpdate(args.id, args.patch),
     onSuccess: () => invalidateTodos("toast.updated", "success"),
     onError: (e) => toast?.show(errorText(e), "error"),
   });
@@ -104,8 +108,10 @@ export function useTodos(opts: UseTodosOpts) {
   });
 
   const bulkMut = useMutation({
-    mutationFn: (args: { patch: Partial<Pick<Todo, "text" | "completed">>; ids?: string[] }) =>
-      apiUpdateBulk(args.patch, args.ids),
+    mutationFn: (args: {
+      patch: Partial<Pick<Todo, "text" | "completed">>;
+      ids?: string[];
+    }) => apiUpdateBulk(args.patch, args.ids),
     onSuccess: () => invalidateTodos("toast.bulkUpdated", "success"),
     onError: (e) => toast?.show(errorText(e), "error"),
   });
@@ -127,33 +133,36 @@ export function useTodos(opts: UseTodosOpts) {
 
   const add = useCallback(
     async (text: string) => {
-      if (!text.trim()) return;
       await addMut.mutateAsync(text.trim());
     },
-    [addMut]
+    [addMut],
   );
 
   const toggle = useCallback(
     async (id: string) => {
       const current = all.find((t) => t.id === id);
       if (!current) return;
-      await updateMut.mutateAsync({ id, patch: { completed: !current.completed } });
+      await updateMut.mutateAsync({
+        id,
+        patch: { completed: !current.completed },
+      });
     },
-    [all, updateMut]
+    [all, updateMut],
   );
 
   const edit = useCallback(
     async (id: string, text: string) => {
-      const ttext = text.trim();
-      if (!ttext) return;
-      await updateMut.mutateAsync({ id, patch: { text: ttext } });
+      await updateMut.mutateAsync({ id, patch: { text: text.trim() } });
     },
-    [updateMut]
+    [updateMut],
   );
 
-  const remove = useCallback(async (id: string) => {
-    await deleteMut.mutateAsync(id);
-  }, [deleteMut]);
+  const remove = useCallback(
+    async (id: string) => {
+      await deleteMut.mutateAsync(id);
+    },
+    [deleteMut],
+  );
 
   const clearCompleted = useCallback(async () => {
     await clearMut.mutateAsync();
