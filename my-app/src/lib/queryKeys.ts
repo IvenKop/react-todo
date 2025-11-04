@@ -1,3 +1,4 @@
 export const qk = {
-  todos: (filter: string) => ["todos", { filter }] as const
+  todos: (filter: string, page: number, limit: number) =>
+    ["todos", filter, page, limit] as const,
 };

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
 import type { Filter } from "./types";
 import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
@@ -30,15 +29,10 @@ function writePageToURL(nextPage: number) {
   window.history.replaceState({}, "", url);
 }
 
-function normalize(text: string): string {
-  return text.trim().replace(/\s+/g, " ");
-}
-
 export default function App() {
-  const { t } = useTranslation();
   const toast = useToast();
 
-  const [filter, setFilter] = useState<Filter>(() => loadFilter() as Filter);
+  const [filter, setFilter] = useState<Filter>(() => loadFilter());
   const [page, setPage] = useState<number>(() => readPageFromURL());
 
   useEffect(() => {
@@ -47,6 +41,7 @@ export default function App() {
 
   const {
     todos,
+    total,
     error,
     counts,
     add,
@@ -57,30 +52,14 @@ export default function App() {
     toggleAll,
   } = useTodos({ toast, filter, page, pageSize: PAGE_SIZE });
 
-  const totalPages = Math.max(1, Math.ceil((counts.total ?? 0) / PAGE_SIZE));
-
-  if (page > totalPages) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div role="alert" className="text-center">
-          <h1 className="mb-2 text-3xl font-[200] text-[#b83f45]">
-            {t("error.404.title")}
-          </h1>
-          <p className="text-[#5c5c5c]">{t("error.404.message")}</p>
-        </div>
-      </div>
-    );
-  }
-
-  const hasAnyTasks = (counts.total ?? 0) > 0;
-  const isAllSelected =
-    hasAnyTasks && todos.length > 0 && todos.every((t) => t.completed);
+  const hasAnyTasks = counts.total > 0;
+  const isAllSelected = hasAnyTasks && counts.active === 0;
 
   const handleAdd = useCallback(
     async (text: string) => {
-      const n = normalize(text);
-      if (!n) return;
-      await add(n);
+      const cleaned = text.trim().replace(/\s+/g, " ");
+      if (!cleaned) return;
+      await add(cleaned);
       setPage(FIRST_PAGE);
       writePageToURL(FIRST_PAGE);
     },
@@ -164,7 +143,7 @@ export default function App() {
           </div>
         </div>
         <Pagination
-          total={counts.total}
+          total={total}
           pageSize={PAGE_SIZE}
           currentPage={page}
           onPageChange={handlePageChange}

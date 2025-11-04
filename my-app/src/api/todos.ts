@@ -9,33 +9,42 @@ export type TodosPage = {
   total: number;
   page: number;
   limit: number;
+  active_total: number;
+  completed_total: number;
 };
+
+function applyFilter(all: Todo[], filter: Filter): Todo[] {
+  if (filter === "all") return all;
+  if (filter === "active") return all.filter((t) => !t.completed);
+  return all.filter((t) => t.completed);
+}
 
 export async function listTodos(
   filter: Filter = "all",
   page = 1,
-  limit = 20
+  limit = 20,
 ): Promise<TodosPage> {
   if (!BASE) {
     const all = getTodos();
-    const filtered =
-      filter === "all"
-        ? all
-        : filter === "active"
-        ? all.filter((t) => !t.completed)
-        : all.filter((t) => t.completed);
-    const total = filtered.length;
+    const filtered = applyFilter(all, filter);
     const start = (page - 1) * limit;
     const items = filtered.slice(start, start + limit);
-    return { items, total, page, limit };
+    const active_total = all.filter((t) => !t.completed).length;
+    const completed_total = all.length - active_total;
+
+    return {
+      items,
+      total: filtered.length,
+      page,
+      limit,
+      active_total,
+      completed_total,
+    };
   }
 
-  const params = new URLSearchParams({
-    filter,
-    page: String(page),
-    limit: String(limit),
-  });
-  return http.request<TodosPage>(`/api/todos?${params.toString()}`);
+  return http.request<TodosPage>(
+    `/api/todos?filter=${encodeURIComponent(filter)}&page=${page}&limit=${limit}`,
+  );
 }
 
 export async function addTodo(text: string): Promise<Todo> {
@@ -53,7 +62,7 @@ export async function addTodo(text: string): Promise<Todo> {
 
 export async function updateTodo(
   id: string,
-  patch: Partial<Pick<Todo, "text" | "completed">>
+  patch: Partial<Pick<Todo, "text" | "completed">>,
 ): Promise<Todo> {
   if (!BASE) {
     const all = getTodos();
@@ -87,7 +96,7 @@ export async function clearCompleted(): Promise<void> {
 
 export async function updateTodosBulk(
   patch: Partial<Pick<Todo, "text" | "completed">>,
-  ids?: string[]
+  ids?: string[],
 ): Promise<void> {
   if (!BASE) {
     const all = getTodos();
