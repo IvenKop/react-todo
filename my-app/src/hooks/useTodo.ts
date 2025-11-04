@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import type { Todo, Filter } from "../types";
 import {
   listTodos,
@@ -6,32 +6,60 @@ import {
   updateTodo as apiUpdate,
   deleteTodo as apiDelete,
   clearCompleted as apiClearCompleted,
-  getFilter as loadFilter,
-  saveFilter as persistFilter,
-  updateTodosBulk as apiUpdateBulk
+  updateTodosBulk as apiUpdateBulk,
 } from "../api/todos";
 import { socket } from "../realtime/socket";
 import { EV } from "../realtime/events";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { qk } from "../lib/queryKeys";
+import { useTranslation } from "react-i18next";
+import { errorText } from "../lib/erros";
 
 type ToastApi = { show: (text: string, type?: "success" | "error" | "info") => void };
 
-export function useTodos(opts?: { toast?: ToastApi }) {
-  const toast = opts?.toast;
-  const qc = useQueryClient();
-  const [filter, setFilter] = useState<Filter>(loadFilter());
+type UseTodosOpts = {
+  toast?: ToastApi;
+  filter: Filter;
+};
 
-  const { data: all = [], isLoading, isError, error } = useQuery({
-    queryKey: qk.todos("all"),
-    queryFn: () => listTodos("all")
+type ListResp =
+  | Todo[]
+  | {
+      items: Todo[];
+      total_task_count?: number;
+      filtered_task_count?: number;
+      active_task_count?: number;
+      completed_task_count?: number;
+    };
+
+function itemsOf(resp?: ListResp): Todo[] {
+  if (!resp) return [];
+  return Array.isArray(resp) ? resp : resp.items;
+}
+
+export function useTodos(opts: UseTodosOpts) {
+  const { toast, filter } = opts;
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+
+  const {
+    data: listResp,
+    isLoading: isLoadingList,
+    isError: isErrorList,
+    error: errorList,
+  } = useQuery({
+    queryKey: qk.todos(filter),
+    queryFn: () => listTodos(filter),
   });
 
-  const todos = useMemo(() => {
-    if (filter === "all") return all;
-    if (filter === "active") return all.filter((t) => !t.completed);
-    return all.filter((t) => t.completed);
-  }, [all, filter]);
+  const todos = itemsOf(listResp);
+
+  const { data: allResp, isLoading: isLoadingAll } = useQuery({
+    queryKey: qk.todos("all"),
+    queryFn: () => listTodos("all"),
+  });
+
+  const all = itemsOf(allResp);
 
   const counts = useMemo(() => {
     const total = all.length;
@@ -40,105 +68,88 @@ export function useTodos(opts?: { toast?: ToastApi }) {
     return { total, active, completed };
   }, [all]);
 
-  const err = (e: unknown) => (e instanceof Error ? e.message : "Something went wrong");
-  const invalidateAll = () => qc.invalidateQueries({ queryKey: qk.todos("all") });
+  const invalidateTodos = useCallback(
+    (toastKey?: string, type?: "success" | "error" | "info") => {
+      (["all", "active", "completed"] as const).forEach((f) =>
+        qc.invalidateQueries({ queryKey: qk.todos(f) })
+      );
+      if (toastKey) toast?.show(t(toastKey), type);
+    },
+    [qc, t, toast]
+  );
 
   const addMut = useMutation({
     mutationFn: (text: string) => apiAdd(text),
-    onSuccess: () => {
-      invalidateAll();
-      toast?.show("Task added", "success");
-    },
-    onError: (e) => toast?.show(err(e), "error")
+    onSuccess: () => invalidateTodos("toast.added", "success"),
+    onError: (e) => toast?.show(errorText(e), "error"),
   });
 
   const updateMut = useMutation({
     mutationFn: (args: { id: string; patch: Partial<Pick<Todo, "text" | "completed">> }) =>
       apiUpdate(args.id, args.patch),
-    onSuccess: () => {
-      invalidateAll();
-      toast?.show("Task updated", "success");
-    },
-    onError: (e) => toast?.show(err(e), "error")
+    onSuccess: () => invalidateTodos("toast.updated", "success"),
+    onError: (e) => toast?.show(errorText(e), "error"),
   });
 
   const deleteMut = useMutation({
     mutationFn: (id: string) => apiDelete(id),
-    onSuccess: () => {
-      invalidateAll();
-      toast?.show("Task deleted", "info");
-    },
-    onError: (e) => toast?.show(err(e), "error")
+    onSuccess: () => invalidateTodos("toast.deleted", "info"),
+    onError: (e) => toast?.show(errorText(e), "error"),
   });
 
   const clearMut = useMutation({
     mutationFn: () => apiClearCompleted(),
-    onSuccess: () => {
-      invalidateAll();
-      toast?.show("Completed cleared", "info");
-    },
-    onError: (e) => toast?.show(err(e), "error")
+    onSuccess: () => invalidateTodos("toast.cleared", "info"),
+    onError: (e) => toast?.show(errorText(e), "error"),
   });
 
   const bulkMut = useMutation({
     mutationFn: (args: { patch: Partial<Pick<Todo, "text" | "completed">>; ids?: string[] }) =>
       apiUpdateBulk(args.patch, args.ids),
-    onSuccess: () => {
-      invalidateAll();
-      toast?.show("Tasks updated", "success");
-    },
-    onError: (e) => toast?.show(err(e), "error")
+    onSuccess: () => invalidateTodos("toast.bulkUpdated", "success"),
+    onError: (e) => toast?.show(errorText(e), "error"),
   });
 
   useEffect(() => {
-    const inv = () => invalidateAll();
-    const onCreated = (todo: Todo) => {
-      qc.setQueryData<Todo[]>(qk.todos("all"), (prev) => {
-        if (!prev) return [todo];
-        if (prev.some((t) => t.id === todo.id)) return prev;
-        return [todo, ...prev];
-      });
-    };
-    const onUpdated = (todo: Todo) => {
-      qc.setQueryData<Todo[]>(qk.todos("all"), (prev) =>
-        prev ? prev.map((t) => (t.id === todo.id ? todo : t)) : prev
-      );
-    };
-    const onRemoved = ({ id }: { id: string }) => {
-      qc.setQueryData<Todo[]>(qk.todos("all"), (prev) =>
-        prev ? prev.filter((t) => t.id !== id) : prev
-      );
-    };
-
-    socket.on(EV.todos.invalidate, inv);
-    socket.on(EV.todo.created, onCreated);
-    socket.on(EV.todo.updated, onUpdated);
-    socket.on(EV.todo.removed, onRemoved);
+    const invalidate = () => invalidateTodos();
+    socket.on(EV.todos.invalidate, invalidate);
+    socket.on(EV.todo.created, invalidate);
+    socket.on(EV.todo.updated, invalidate);
+    socket.on(EV.todo.removed, invalidate);
 
     return () => {
-      socket.off(EV.todos.invalidate, inv);
-      socket.off(EV.todo.created, onCreated);
-      socket.off(EV.todo.updated, onUpdated);
-      socket.off(EV.todo.removed, onRemoved);
+      socket.off(EV.todos.invalidate, invalidate);
+      socket.off(EV.todo.created, invalidate);
+      socket.off(EV.todo.updated, invalidate);
+      socket.off(EV.todo.removed, invalidate);
     };
-  }, [qc]);
+  }, [invalidateTodos]);
 
-  const add = useCallback(async (text: string) => {
-    if (!text.trim()) return;
-    await addMut.mutateAsync(text.trim());
-  }, [addMut]);
+  const add = useCallback(
+    async (text: string) => {
+      if (!text.trim()) return;
+      await addMut.mutateAsync(text.trim());
+    },
+    [addMut]
+  );
 
-  const toggle = useCallback(async (id: string) => {
-    const current = all.find((t) => t.id === id);
-    if (!current) return;
-    await updateMut.mutateAsync({ id, patch: { completed: !current.completed } });
-  }, [all, updateMut]);
+  const toggle = useCallback(
+    async (id: string) => {
+      const current = all.find((t) => t.id === id);
+      if (!current) return;
+      await updateMut.mutateAsync({ id, patch: { completed: !current.completed } });
+    },
+    [all, updateMut]
+  );
 
-  const edit = useCallback(async (id: string, text: string) => {
-    const t = text.trim();
-    if (!t) return;
-    await updateMut.mutateAsync({ id, patch: { text: t } });
-  }, [updateMut]);
+  const edit = useCallback(
+    async (id: string, text: string) => {
+      const ttext = text.trim();
+      if (!ttext) return;
+      await updateMut.mutateAsync({ id, patch: { text: ttext } });
+    },
+    [updateMut]
+  );
 
   const remove = useCallback(async (id: string) => {
     await deleteMut.mutateAsync(id);
@@ -148,11 +159,6 @@ export function useTodos(opts?: { toast?: ToastApi }) {
     await clearMut.mutateAsync();
   }, [clearMut]);
 
-  const changeFilter = useCallback((next: Filter) => {
-    setFilter(next);
-    persistFilter(next);
-  }, []);
-
   const toggleAll = useCallback(async () => {
     if (all.length === 0) return;
     const allCompleted = all.every((t) => t.completed);
@@ -160,7 +166,8 @@ export function useTodos(opts?: { toast?: ToastApi }) {
   }, [all, bulkMut]);
 
   const loading =
-    isLoading ||
+    isLoadingList ||
+    isLoadingAll ||
     addMut.isPending ||
     updateMut.isPending ||
     deleteMut.isPending ||
@@ -169,16 +176,14 @@ export function useTodos(opts?: { toast?: ToastApi }) {
 
   return {
     todos,
-    filter,
     loading,
-    error: isError ? (error instanceof Error ? error.message : "Unknown error") : null,
+    error: isErrorList ? errorText(errorList) : null,
     counts,
     add,
     toggle,
     edit,
     remove,
     clearCompleted,
-    changeFilter,
-    toggleAll
+    toggleAll,
   };
 }

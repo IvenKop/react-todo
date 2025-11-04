@@ -10,6 +10,10 @@ import Footer from "./components/Footer";
 import { ToastContainer } from "./components/Toast";
 import { useToast } from "./hooks/useToast";
 import { useTodos } from "./hooks/useTodo";
+import {
+  getFilter as loadFilter,
+  saveFilter as persistFilter,
+} from "./api/todos";
 
 const FIRST_PAGE = 1;
 const PAGE_SIZE = 5;
@@ -27,10 +31,18 @@ function writePageToURL(nextPage: number) {
 }
 
 export default function App() {
+  const { t } = useTranslation();
   const toast = useToast();
+
+  const [filter, setFilter] = useState<Filter>(() => loadFilter());
+  const [page, setPage] = useState<number>(() => readPageFromURL());
+
+  useEffect(() => {
+    writePageToURL(page);
+  }, [page]);
+
   const {
     todos,
-    filter,
     error,
     counts,
     add,
@@ -38,16 +50,8 @@ export default function App() {
     edit,
     remove,
     clearCompleted,
-    changeFilter,
     toggleAll,
-  } = useTodos({ toast });
-
-  const { t } = useTranslation();
-  const [page, setPage] = useState<number>(() => readPageFromURL());
-
-  useEffect(() => {
-    writePageToURL(page);
-  }, [page]);
+  } = useTodos({ toast, filter });
 
   const totalPages = Math.max(1, Math.ceil(todos.length / PAGE_SIZE));
   if (page > totalPages) {
@@ -130,14 +134,12 @@ export default function App() {
     writePageToURL(next);
   }, []);
 
-  const setFilter = useCallback(
-    (f: Filter) => {
-      changeFilter(f);
-      setPage(FIRST_PAGE);
-      writePageToURL(FIRST_PAGE);
-    },
-    [changeFilter],
-  );
+  const handleSetFilter = useCallback((f: Filter) => {
+    setFilter(f);
+    persistFilter(f);
+    setPage(FIRST_PAGE);
+    writePageToURL(FIRST_PAGE);
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -166,7 +168,7 @@ export default function App() {
               <InfoMenu
                 activeCount={counts.active}
                 filter={filter}
-                setFilter={setFilter}
+                setFilter={handleSetFilter}
                 onClearCompleted={handleClearCompleted}
               />
             )}
