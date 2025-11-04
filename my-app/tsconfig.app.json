@@ -6,14 +6,12 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
     "skipLibCheck": true,
-
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -26,6 +24,7 @@
     "src/**/*.test.*",
     "src/**/__tests__/**",
     "src/setupTests.*",
-    "**/vitest.setup.*"
+    "**/vitest.setup.*",
+    "src/test-utils.tsx"
   ]
 }

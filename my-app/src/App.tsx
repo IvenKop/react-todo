@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Filter } from "./types";
-
 import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
 import TaskList from "./components/TaskList";
 import InfoMenu from "./components/InfoMenu";
 import Pagination from "./components/Pagination";
 import Footer from "./components/Footer";
-import SocketDebug from "./components/SocketDebug";
 import { ToastContainer } from "./components/Toast";
 import { useToast } from "./hooks/useToast";
-
 import { useTodos } from "./hooks/useTodo";
+import {
+  getFilter as loadFilter,
+  saveFilter as persistFilter,
+} from "./api/todos";
 
 const FIRST_PAGE = 1;
 const PAGE_SIZE = 5;
@@ -30,11 +31,18 @@ function writePageToURL(nextPage: number) {
 }
 
 export default function App() {
+  const { t } = useTranslation();
   const toast = useToast();
+
+  const [filter, setFilter] = useState<Filter>(() => loadFilter());
+  const [page, setPage] = useState<number>(() => readPageFromURL());
+
+  useEffect(() => {
+    writePageToURL(page);
+  }, [page]);
+
   const {
     todos,
-    filter,
-    loading,
     error,
     counts,
     add,
@@ -42,16 +50,8 @@ export default function App() {
     edit,
     remove,
     clearCompleted,
-    changeFilter,
     toggleAll,
-  } = useTodos(toast);
-
-  const { t } = useTranslation();
-  const [page, setPage] = useState<number>(() => readPageFromURL());
-
-  useEffect(() => {
-    writePageToURL(page);
-  }, [page]);
+  } = useTodos({ toast, filter });
 
   const totalPages = Math.max(1, Math.ceil(todos.length / PAGE_SIZE));
   if (page > totalPages) {
@@ -73,8 +73,8 @@ export default function App() {
     [todos, start],
   );
 
-  const isListEmpty = todos.length > 0;
-  const isAllSelected = isListEmpty && todos.every((t) => t.completed);
+  const hasAnyTasks = counts.total > 0;
+  const isAllSelected = hasAnyTasks && todos.every((t) => t.completed);
 
   function normalize(text: string): string {
     return text.trim().replace(/\s+/g, " ");
@@ -134,14 +134,12 @@ export default function App() {
     writePageToURL(next);
   }, []);
 
-  const setFilter = useCallback(
-    (f: Filter) => {
-      changeFilter(f);
-      setPage(FIRST_PAGE);
-      writePageToURL(FIRST_PAGE);
-    },
-    [changeFilter],
-  );
+  const handleSetFilter = useCallback((f: Filter) => {
+    setFilter(f);
+    persistFilter(f);
+    setPage(FIRST_PAGE);
+    writePageToURL(FIRST_PAGE);
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -151,15 +149,10 @@ export default function App() {
           <div className="relative z-0 bg-[rgb(246,246,246)] shadow-[0_2px_4px_rgba(0,0,0,0.1),0_25px_50px_rgba(0,0,0,0.1)]">
             <TaskInput
               onAdd={handleAdd}
-              isListEmpty={isListEmpty}
+              isListEmpty={hasAnyTasks}
               isAllSelected={isAllSelected}
               onToggleAll={handleToggleAll}
             />
-            {loading && (
-              <div className="p-3 text-sm text-gray-500" aria-live="polite">
-                Loading…
-              </div>
-            )}
             {error && (
               <div className="p-3 text-sm text-red-600" role="alert">
                 {error}
@@ -171,11 +164,11 @@ export default function App() {
               onEdit={handleEdit}
               onToggle={handleToggle}
             />
-            {isListEmpty && (
+            {hasAnyTasks && (
               <InfoMenu
                 activeCount={counts.active}
                 filter={filter}
-                setFilter={setFilter}
+                setFilter={handleSetFilter}
                 onClearCompleted={handleClearCompleted}
               />
             )}
@@ -190,7 +183,6 @@ export default function App() {
       </main>
       <Footer />
       <ToastContainer messages={toast.messages} />
-      <SocketDebug />
     </div>
   );
 }

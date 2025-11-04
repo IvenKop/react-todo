@@ -2,6 +2,8 @@ import { createContext, useMemo, useState } from "react";
 import type { LoginInput } from "../validation/auth";
 import { loginSchema } from "../validation/auth";
 import { apiLogin, apiRegister } from "../api/auth";
+import { http } from "../api/http";
+import { useMutation } from "@tanstack/react-query";
 
 type AuthCtx = {
   isAuthed: boolean;
@@ -11,44 +13,57 @@ type AuthCtx = {
 };
 export const AuthContext = createContext<AuthCtx | null>(null);
 
+async function persistTokens(access?: string, refresh?: string) {
+  if (access) {
+    http.setAccessToken(access);
+    localStorage.setItem("auth_token", access);
+  }
+  if (refresh) {
+    http.setRefreshToken(refresh);
+  }
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthed, setIsAuthed] = useState<boolean>(
     !!localStorage.getItem("auth_token"),
   );
 
-  async function persistTokens(accessToken: string, refreshToken: string) {
-    localStorage.setItem("auth_token", accessToken);
-    localStorage.setItem("access_token", accessToken);
-    localStorage.setItem("refresh_token", refreshToken);
-    setIsAuthed(true);
+  const loginMut = useMutation({
+    mutationFn: async (payload: LoginInput) => {
+      const parsed = loginSchema.safeParse(payload);
+      if (!parsed.success) {
+        const msg = parsed.error.issues[0]?.message ?? "Validation error";
+        throw new Error(msg);
+      }
+      return apiLogin(parsed.data.email, parsed.data.password);
+    },
+    onSuccess: async (res) => {
+      await persistTokens(res.accessToken, res.refreshToken);
+      setIsAuthed(true);
+    },
+  });
+
+  const registerMut = useMutation({
+    mutationFn: async (payload: LoginInput) => {
+      const parsed = loginSchema.safeParse(payload);
+      if (!parsed.success) {
+        const msg = parsed.error.issues[0]?.message ?? "Validation error";
+        throw new Error(msg);
+      }
+      return apiRegister(parsed.data.email, parsed.data.password);
+    },
+    onSuccess: async (res) => {
+      await persistTokens(res.accessToken, res.refreshToken);
+      setIsAuthed(true);
+    },
+  });
+
+  async function login(data: LoginInput) {
+    await loginMut.mutateAsync(data);
   }
 
-  async function login(input: LoginInput) {
-    const parsed = loginSchema.safeParse(input);
-    if (!parsed.success) {
-      const msg =
-        parsed.error.issues[0]?.message ?? "Invalid email or password";
-      throw new Error(msg);
-    }
-    const { accessToken, refreshToken } = await apiLogin(
-      parsed.data.email,
-      parsed.data.password,
-    );
-    await persistTokens(accessToken, refreshToken);
-  }
-
-  async function register(input: LoginInput) {
-    const parsed = loginSchema.safeParse(input);
-    if (!parsed.success) {
-      const msg =
-        parsed.error.issues[0]?.message ?? "Invalid registration data";
-      throw new Error(msg);
-    }
-    const { accessToken, refreshToken } = await apiRegister(
-      parsed.data.email,
-      parsed.data.password,
-    );
-    await persistTokens(accessToken, refreshToken);
+  async function register(data: LoginInput) {
+    await registerMut.mutateAsync(data);
   }
 
   function logout() {
@@ -62,5 +77,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({ isAuthed, login, register, logout }),
     [isAuthed],
   );
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

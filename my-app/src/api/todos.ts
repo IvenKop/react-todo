@@ -2,7 +2,7 @@ import type { Todo, Filter } from "../types";
 import { getTodos, saveTodos, getFilter, saveFilter } from "../utils/storage";
 import { http } from "./http";
 
-const BASE = import.meta.env.VITE_API_URL;
+const BASE = import.meta.env.VITE_API_URL as string | undefined;
 
 export async function listTodos(filter: Filter = "all"): Promise<Todo[]> {
   if (!BASE) {
@@ -17,35 +17,40 @@ export async function listTodos(filter: Filter = "all"): Promise<Todo[]> {
 
 export async function addTodo(text: string): Promise<Todo> {
   if (!BASE) {
-    const all = getTodos();
-    const newTodo: Todo = { id: crypto.randomUUID(), text, completed: false };
-    const updated = [newTodo, ...all];
-    saveTodos(updated);
-    return newTodo;
+    const todo: Todo = { id: crypto.randomUUID(), text, completed: false };
+    const next = [todo, ...getTodos()];
+    saveTodos(next);
+    return todo;
   }
-  return await http.request<Todo>("/api/todos", { method: "POST", body: JSON.stringify({ text }) });
+  return http.request<Todo>("/api/todos", {
+    method: "POST",
+    body: { text }
+  });
 }
 
 export async function updateTodo(
   id: string,
-  patch: Partial<Pick<Todo, "text" | "completed">>,
+  patch: Partial<Pick<Todo, "text" | "completed">>
 ): Promise<Todo> {
   if (!BASE) {
     const all = getTodos();
-    const updated = all.map((t) => (t.id === id ? { ...t, ...patch } : t));
-    saveTodos(updated);
-    return updated.find((t) => t.id === id)!;
+    const next = all.map((t) => (t.id === id ? { ...t, ...patch } as Todo : t));
+    saveTodos(next);
+    const updated = next.find((t) => t.id === id)!;
+    return updated;
   }
-  return await http.request<Todo>(`/api/todos/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+  return http.request<Todo>(`/api/todos/${id}`, {
+    method: "PATCH",
+    body: patch
+  });
 }
 
 export async function deleteTodo(id: string): Promise<void> {
   if (!BASE) {
-    const updated = getTodos().filter((t) => t.id !== id);
-    saveTodos(updated);
+    saveTodos(getTodos().filter((t) => t.id !== id));
     return;
   }
-  await http.request(`/api/todos/${id}`, { method: "DELETE" });
+  await http.request<void>(`/api/todos/${id}`, { method: "DELETE" });
 }
 
 export async function clearCompleted(): Promise<void> {
@@ -54,23 +59,26 @@ export async function clearCompleted(): Promise<void> {
     saveTodos(updated);
     return;
   }
-  await http.request("/api/todos", { method: "DELETE" });
+  await http.request<void>("/api/todos", { method: "DELETE" });
 }
 
 export async function updateTodosBulk(
   patch: Partial<Pick<Todo, "text" | "completed">>,
-  ids?: string[],
+  ids?: string[]
 ): Promise<void> {
   if (!BASE) {
     const all = getTodos();
     const next =
       ids && ids.length > 0
-        ? all.map((t) => (ids.includes(t.id) ? { ...t, ...patch } : t))
-        : all.map((t) => ({ ...t, ...patch }));
+        ? all.map((t) => (ids.includes(t.id) ? ({ ...t, ...patch } as Todo) : t))
+        : all.map((t) => ({ ...t, ...patch } as Todo));
     saveTodos(next);
     return;
   }
-  await http.request<void>("/api/todos", { method: "PATCH", body: JSON.stringify({ ids, patch }) });
+  await http.request<void>("/api/todos", {
+    method: "PATCH",
+    body: { ids, patch }
+  });
 }
 
 export { getFilter, saveFilter };
