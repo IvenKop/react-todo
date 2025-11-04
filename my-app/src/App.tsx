@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Filter } from "./types";
 import Header from "./components/Header";
@@ -30,11 +30,15 @@ function writePageToURL(nextPage: number) {
   window.history.replaceState({}, "", url);
 }
 
+function normalize(text: string): string {
+  return text.trim().replace(/\s+/g, " ");
+}
+
 export default function App() {
   const { t } = useTranslation();
   const toast = useToast();
 
-  const [filter, setFilter] = useState<Filter>(() => loadFilter());
+  const [filter, setFilter] = useState<Filter>(() => loadFilter() as Filter);
   const [page, setPage] = useState<number>(() => readPageFromURL());
 
   useEffect(() => {
@@ -51,9 +55,10 @@ export default function App() {
     remove,
     clearCompleted,
     toggleAll,
-  } = useTodos({ toast, filter });
+  } = useTodos({ toast, filter, page, pageSize: PAGE_SIZE });
 
-  const totalPages = Math.max(1, Math.ceil(todos.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil((counts.total ?? 0) / PAGE_SIZE));
+
   if (page > totalPages) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -67,30 +72,19 @@ export default function App() {
     );
   }
 
-  const start = (page - 1) * PAGE_SIZE;
-  const pagedTodos = useMemo(
-    () => todos.slice(start, start + PAGE_SIZE),
-    [todos, start],
-  );
-
-  const hasAnyTasks = counts.total > 0;
-  const isAllSelected = hasAnyTasks && todos.every((t) => t.completed);
-
-  function normalize(text: string): string {
-    return text.trim().replace(/\s+/g, " ");
-  }
+  const hasAnyTasks = (counts.total ?? 0) > 0;
+  const isAllSelected =
+    hasAnyTasks && todos.length > 0 && todos.every((t) => t.completed);
 
   const handleAdd = useCallback(
     async (text: string) => {
       const n = normalize(text);
       if (!n) return;
-      const already = todos.some((t) => normalize(t.text) === n);
-      if (already) return;
       await add(n);
       setPage(FIRST_PAGE);
       writePageToURL(FIRST_PAGE);
     },
-    [add, todos],
+    [add],
   );
 
   const handleDelete = useCallback(
@@ -104,14 +98,9 @@ export default function App() {
     async (id: string, text: string) => {
       const cleaned = text.trim();
       if (!cleaned) return;
-      const n = normalize(cleaned);
-      const duplicate = todos.some(
-        (t) => t.id !== id && normalize(t.text) === n,
-      );
-      if (duplicate) return;
       await edit(id, cleaned);
     },
-    [edit, todos],
+    [edit],
   );
 
   const handleToggle = useCallback(
@@ -159,7 +148,7 @@ export default function App() {
               </div>
             )}
             <TaskList
-              todos={pagedTodos}
+              todos={todos}
               onDelete={handleDelete}
               onEdit={handleEdit}
               onToggle={handleToggle}
@@ -175,7 +164,7 @@ export default function App() {
           </div>
         </div>
         <Pagination
-          total={todos.length}
+          total={counts.total}
           pageSize={PAGE_SIZE}
           currentPage={page}
           onPageChange={handlePageChange}

@@ -7,6 +7,7 @@ import {
   deleteTodo as apiDelete,
   clearCompleted as apiClearCompleted,
   updateTodosBulk as apiUpdateBulk,
+  type TodosPage,
 } from "../api/todos";
 import { socket } from "../realtime/socket";
 import { EV } from "../realtime/events";
@@ -22,25 +23,16 @@ type ToastApi = {
 type UseTodosOpts = {
   toast?: ToastApi;
   filter: Filter;
+  page: number;
+  pageSize: number;
 };
 
-type ListResp =
-  | Todo[]
-  | {
-      items: Todo[];
-      total_task_count?: number;
-      filtered_task_count?: number;
-      active_task_count?: number;
-      completed_task_count?: number;
-    };
-
-function itemsOf(resp?: ListResp): Todo[] {
-  if (!resp) return [];
-  return Array.isArray(resp) ? resp : resp.items;
+function itemsOf(resp?: TodosPage): Todo[] {
+  return resp?.items ?? [];
 }
 
 export function useTodos(opts: UseTodosOpts) {
-  const { toast, filter } = opts;
+  const { toast, filter, page, pageSize } = opts;
   const { t } = useTranslation();
   const qc = useQueryClient();
 
@@ -50,34 +42,42 @@ export function useTodos(opts: UseTodosOpts) {
     isError: isErrorList,
     error: errorList,
   } = useQuery({
-    queryKey: qk.todos(filter),
-    queryFn: () => listTodos(filter),
+    queryKey: [...qk.todos(filter), page, pageSize],
+    queryFn: () => listTodos(filter, page, pageSize),
   });
 
   const todos = itemsOf(listResp);
 
-  const { data: allResp, isLoading: isLoadingAll } = useQuery({
-    queryKey: qk.todos("all"),
-    queryFn: () => listTodos("all"),
+  const { data: totalAllResp, isLoading: isLoadingTotalAll } = useQuery({
+    queryKey: [...qk.todos("all"), "meta"],
+    queryFn: () => listTodos("all", 1, 1),
   });
 
-  const all = itemsOf(allResp);
+  const { data: totalActiveResp, isLoading: isLoadingTotalActive } = useQuery({
+    queryKey: [...qk.todos("active"), "meta"],
+    queryFn: () => listTodos("active", 1, 1),
+  });
+
+  const { data: totalCompletedResp, isLoading: isLoadingTotalCompleted } = useQuery({
+    queryKey: [...qk.todos("completed"), "meta"],
+    queryFn: () => listTodos("completed", 1, 1),
+  });
 
   const counts = useMemo(() => {
-    const total = all.length;
-    const active = all.filter((t) => !t.completed).length;
-    const completed = total - active;
+    const total = totalAllResp?.total ?? 0;
+    const active = totalActiveResp?.total ?? 0;
+    const completed = totalCompletedResp?.total ?? 0;
     return { total, active, completed };
-  }, [all]);
+  }, [totalAllResp, totalActiveResp, totalCompletedResp]);
 
   const invalidateTodos = useCallback(
     (toastKey?: string, type?: "success" | "error" | "info") => {
-      (["all", "active", "completed"] as const).forEach((f) =>
-        qc.invalidateQueries({ queryKey: qk.todos(f) }),
-      );
+      (["all", "active", "completed"] as const).forEach((f) => {
+        qc.invalidateQueries({ queryKey: qk.todos(f) });
+      });
       if (toastKey) toast?.show(t(toastKey), type);
     },
-    [qc, t, toast],
+    [qc, t, toast]
   );
 
   const addMut = useMutation({
@@ -122,7 +122,6 @@ export function useTodos(opts: UseTodosOpts) {
     socket.on(EV.todo.created, invalidate);
     socket.on(EV.todo.updated, invalidate);
     socket.on(EV.todo.removed, invalidate);
-
     return () => {
       socket.off(EV.todos.invalidate, invalidate);
       socket.off(EV.todo.created, invalidate);
@@ -135,33 +134,33 @@ export function useTodos(opts: UseTodosOpts) {
     async (text: string) => {
       await addMut.mutateAsync(text.trim());
     },
-    [addMut],
+    [addMut]
   );
 
   const toggle = useCallback(
     async (id: string) => {
-      const current = all.find((t) => t.id === id);
+      const current = todos.find((t) => t.id === id);
       if (!current) return;
       await updateMut.mutateAsync({
         id,
         patch: { completed: !current.completed },
       });
     },
-    [all, updateMut],
+    [todos, updateMut]
   );
 
   const edit = useCallback(
     async (id: string, text: string) => {
       await updateMut.mutateAsync({ id, patch: { text: text.trim() } });
     },
-    [updateMut],
+    [updateMut]
   );
 
   const remove = useCallback(
     async (id: string) => {
       await deleteMut.mutateAsync(id);
     },
-    [deleteMut],
+    [deleteMut]
   );
 
   const clearCompleted = useCallback(async () => {
@@ -169,14 +168,16 @@ export function useTodos(opts: UseTodosOpts) {
   }, [clearMut]);
 
   const toggleAll = useCallback(async () => {
-    if (all.length === 0) return;
-    const allCompleted = all.every((t) => t.completed);
-    await bulkMut.mutateAsync({ patch: { completed: !allCompleted } });
-  }, [all, bulkMut]);
+    if (counts.total === 0) return;
+    const allOnPageCompleted = todos.length > 0 && todos.every((t) => t.completed);
+    await bulkMut.mutateAsync({ patch: { completed: !allOnPageCompleted } });
+  }, [todos, counts.total, bulkMut]);
 
   const loading =
     isLoadingList ||
-    isLoadingAll ||
+    isLoadingTotalAll ||
+    isLoadingTotalActive ||
+    isLoadingTotalCompleted ||
     addMut.isPending ||
     updateMut.isPending ||
     deleteMut.isPending ||

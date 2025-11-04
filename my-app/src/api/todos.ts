@@ -4,15 +4,38 @@ import { http } from "./http";
 
 const BASE = import.meta.env.VITE_API_URL as string | undefined;
 
-export async function listTodos(filter: Filter = "all"): Promise<Todo[]> {
+export type TodosPage = {
+  items: Todo[];
+  total: number;
+  page: number;
+  limit: number;
+};
+
+export async function listTodos(
+  filter: Filter = "all",
+  page = 1,
+  limit = 20
+): Promise<TodosPage> {
   if (!BASE) {
     const all = getTodos();
-    if (filter === "all") return all;
-    if (filter === "active") return all.filter((t) => !t.completed);
-    return all.filter((t) => t.completed);
+    const filtered =
+      filter === "all"
+        ? all
+        : filter === "active"
+        ? all.filter((t) => !t.completed)
+        : all.filter((t) => t.completed);
+    const total = filtered.length;
+    const start = (page - 1) * limit;
+    const items = filtered.slice(start, start + limit);
+    return { items, total, page, limit };
   }
-  const data = await http.request<{ items: Todo[] }>(`/api/todos?filter=${filter}&limit=100`);
-  return data.items;
+
+  const params = new URLSearchParams({
+    filter,
+    page: String(page),
+    limit: String(limit),
+  });
+  return http.request<TodosPage>(`/api/todos?${params.toString()}`);
 }
 
 export async function addTodo(text: string): Promise<Todo> {
@@ -24,7 +47,7 @@ export async function addTodo(text: string): Promise<Todo> {
   }
   return http.request<Todo>("/api/todos", {
     method: "POST",
-    body: { text }
+    body: { text },
   });
 }
 
@@ -34,14 +57,14 @@ export async function updateTodo(
 ): Promise<Todo> {
   if (!BASE) {
     const all = getTodos();
-    const next = all.map((t) => (t.id === id ? { ...t, ...patch } as Todo : t));
+    const next = all.map((t) => (t.id === id ? ({ ...t, ...patch } as Todo) : t));
     saveTodos(next);
     const updated = next.find((t) => t.id === id)!;
     return updated;
   }
   return http.request<Todo>(`/api/todos/${id}`, {
     method: "PATCH",
-    body: patch
+    body: patch,
   });
 }
 
@@ -77,7 +100,7 @@ export async function updateTodosBulk(
   }
   await http.request<void>("/api/todos", {
     method: "PATCH",
-    body: { ids, patch }
+    body: { ids, patch },
   });
 }
 
