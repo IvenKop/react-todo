@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo } from "react";
+import { useEffect, useCallback } from "react";
 import type { Todo, Filter } from "../types";
 import {
   listTodos,
@@ -20,62 +20,41 @@ type ToastApi = { show: (text: string, type?: "success" | "error" | "info") => v
 type UseTodosOpts = {
   toast?: ToastApi;
   filter: Filter;
+  page: number;
+  pageSize: number;
 };
 
-type ListResp =
-  | Todo[]
-  | {
-      items: Todo[];
-      total_task_count?: number;
-      filtered_task_count?: number;
-      active_task_count?: number;
-      completed_task_count?: number;
-    };
-
-function itemsOf(resp?: ListResp): Todo[] {
-  if (!resp) return [];
-  return Array.isArray(resp) ? resp : resp.items;
-}
-
 export function useTodos(opts: UseTodosOpts) {
-  const { toast, filter } = opts;
+  const { toast, filter, page, pageSize } = opts;
   const { t } = useTranslation();
   const qc = useQueryClient();
 
   const {
-    data: listResp,
+    data,
     isLoading: isLoadingList,
     isError: isErrorList,
     error: errorList,
   } = useQuery({
-    queryKey: qk.todos(filter),
-    queryFn: () => listTodos(filter),
+    queryKey: qk.todos(filter, page, pageSize),
+    queryFn: () => listTodos(filter, page, pageSize),
   });
 
-  const todos = itemsOf(listResp);
-
-  const { data: allResp, isLoading: isLoadingAll } = useQuery({
-    queryKey: qk.todos("all"),
-    queryFn: () => listTodos("all"),
-  });
-
-  const all = itemsOf(allResp);
-
-  const counts = useMemo(() => {
-    const total = all.length;
-    const active = all.filter((t) => !t.completed).length;
-    const completed = total - active;
-    return { total, active, completed };
-  }, [all]);
+  const todos = (data?.items ?? []) as Todo[];
+  const total = data?.total ?? 0;
+  const counts = {
+    total: (data?.active_total ?? 0) + (data?.completed_total ?? 0),
+    active: data?.active_total ?? 0,
+    completed: data?.completed_total ?? 0,
+  };
 
   const invalidateTodos = useCallback(
     (toastKey?: string, type?: "success" | "error" | "info") => {
-      (["all", "active", "completed"] as const).forEach((f) =>
-        qc.invalidateQueries({ queryKey: qk.todos(f) })
-      );
+      (["all", "active", "completed"] as const).forEach((f) => {
+        qc.invalidateQueries({ queryKey: ["todos", f] });
+      });
       if (toastKey) toast?.show(t(toastKey), type);
     },
-    [qc, t, toast]
+    [qc, t, toast],
   );
 
   const addMut = useMutation({
@@ -127,47 +106,50 @@ export function useTodos(opts: UseTodosOpts) {
 
   const add = useCallback(
     async (text: string) => {
-      if (!text.trim()) return;
-      await addMut.mutateAsync(text.trim());
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      await addMut.mutateAsync(trimmed);
     },
-    [addMut]
+    [addMut],
   );
 
   const toggle = useCallback(
     async (id: string) => {
-      const current = all.find((t) => t.id === id);
+      const current = todos.find((t) => t.id === id);
       if (!current) return;
       await updateMut.mutateAsync({ id, patch: { completed: !current.completed } });
     },
-    [all, updateMut]
+    [todos, updateMut],
   );
 
   const edit = useCallback(
     async (id: string, text: string) => {
-      const ttext = text.trim();
-      if (!ttext) return;
-      await updateMut.mutateAsync({ id, patch: { text: ttext } });
+      const cleaned = text.trim();
+      if (!cleaned) return;
+      await updateMut.mutateAsync({ id, patch: { text: cleaned } });
     },
-    [updateMut]
+    [updateMut],
   );
 
-  const remove = useCallback(async (id: string) => {
-    await deleteMut.mutateAsync(id);
-  }, [deleteMut]);
+  const remove = useCallback(
+    async (id: string) => {
+      await deleteMut.mutateAsync(id);
+    },
+    [deleteMut],
+  );
 
   const clearCompleted = useCallback(async () => {
     await clearMut.mutateAsync();
   }, [clearMut]);
 
   const toggleAll = useCallback(async () => {
-    if (all.length === 0) return;
-    const allCompleted = all.every((t) => t.completed);
+    if (counts.total === 0) return;
+    const allCompleted = counts.active === 0;
     await bulkMut.mutateAsync({ patch: { completed: !allCompleted } });
-  }, [all, bulkMut]);
+  }, [counts, bulkMut]);
 
   const loading =
     isLoadingList ||
-    isLoadingAll ||
     addMut.isPending ||
     updateMut.isPending ||
     deleteMut.isPending ||
@@ -176,6 +158,7 @@ export function useTodos(opts: UseTodosOpts) {
 
   return {
     todos,
+    total,
     loading,
     error: isErrorList ? errorText(errorList) : null,
     counts,

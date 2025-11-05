@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { Filter } from "./types";
 import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
@@ -14,35 +14,26 @@ import {
   getFilter as loadFilter,
   saveFilter as persistFilter,
 } from "./api/todos";
+import { normalize } from "./utils/strings";
 
 const FIRST_PAGE = 1;
 const PAGE_SIZE = 5;
 
-function readPageFromURL(): number {
-  const sp = new URLSearchParams(window.location.search);
-  const p = Number(sp.get("page") || String(FIRST_PAGE));
-  return Number.isFinite(p) && p >= FIRST_PAGE ? p : FIRST_PAGE;
-}
-
-function writePageToURL(nextPage: number) {
-  const url = new URL(window.location.href);
-  url.searchParams.set("page", String(nextPage));
-  window.history.replaceState({}, "", url);
-}
-
 export default function App() {
-  const { t } = useTranslation();
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [filter, setFilter] = useState<Filter>(() => loadFilter());
-  const [page, setPage] = useState<number>(() => readPageFromURL());
+  const pageParam = Number(searchParams.get("page") ?? String(FIRST_PAGE));
+  const page =
+    Number.isFinite(pageParam) && pageParam >= FIRST_PAGE
+      ? pageParam
+      : FIRST_PAGE;
 
-  useEffect(() => {
-    writePageToURL(page);
-  }, [page]);
+  const filter = loadFilter();
 
   const {
     todos,
+    total,
     error,
     counts,
     add,
@@ -51,46 +42,19 @@ export default function App() {
     remove,
     clearCompleted,
     toggleAll,
-  } = useTodos({ toast, filter });
-
-  const totalPages = Math.max(1, Math.ceil(todos.length / PAGE_SIZE));
-  if (page > totalPages) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div role="alert" className="text-center">
-          <h1 className="mb-2 text-3xl font-[200] text-[#b83f45]">
-            {t("error.404.title")}
-          </h1>
-          <p className="text-[#5c5c5c]">{t("error.404.message")}</p>
-        </div>
-      </div>
-    );
-  }
-
-  const start = (page - 1) * PAGE_SIZE;
-  const pagedTodos = useMemo(
-    () => todos.slice(start, start + PAGE_SIZE),
-    [todos, start],
-  );
+  } = useTodos({ toast, filter, page, pageSize: PAGE_SIZE });
 
   const hasAnyTasks = counts.total > 0;
-  const isAllSelected = hasAnyTasks && todos.every((t) => t.completed);
-
-  function normalize(text: string): string {
-    return text.trim().replace(/\s+/g, " ");
-  }
+  const isAllSelected = hasAnyTasks && counts.active === 0;
 
   const handleAdd = useCallback(
     async (text: string) => {
-      const n = normalize(text);
-      if (!n) return;
-      const already = todos.some((t) => normalize(t.text) === n);
-      if (already) return;
-      await add(n);
-      setPage(FIRST_PAGE);
-      writePageToURL(FIRST_PAGE);
+      const cleaned = normalize(text);
+      if (!cleaned) return;
+      await add(cleaned);
+      setSearchParams({ page: String(FIRST_PAGE) }, { replace: true });
     },
-    [add, todos],
+    [add, setSearchParams],
   );
 
   const handleDelete = useCallback(
@@ -102,16 +66,11 @@ export default function App() {
 
   const handleEdit = useCallback(
     async (id: string, text: string) => {
-      const cleaned = text.trim();
+      const cleaned = normalize(text);
       if (!cleaned) return;
-      const n = normalize(cleaned);
-      const duplicate = todos.some(
-        (t) => t.id !== id && normalize(t.text) === n,
-      );
-      if (duplicate) return;
       await edit(id, cleaned);
     },
-    [edit, todos],
+    [edit],
   );
 
   const handleToggle = useCallback(
@@ -129,17 +88,20 @@ export default function App() {
     await clearCompleted();
   }, [clearCompleted]);
 
-  const handlePageChange = useCallback((next: number) => {
-    setPage(next);
-    writePageToURL(next);
-  }, []);
+  const handlePageChange = useCallback(
+    (next: number) => {
+      setSearchParams({ page: String(next) }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  const handleSetFilter = useCallback((f: Filter) => {
-    setFilter(f);
-    persistFilter(f);
-    setPage(FIRST_PAGE);
-    writePageToURL(FIRST_PAGE);
-  }, []);
+  const handleSetFilter = useCallback(
+    (f: Filter) => {
+      persistFilter(f);
+      setSearchParams({ page: String(FIRST_PAGE) }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
   return (
     <div className="min-h-screen">
@@ -159,7 +121,7 @@ export default function App() {
               </div>
             )}
             <TaskList
-              todos={pagedTodos}
+              todos={todos}
               onDelete={handleDelete}
               onEdit={handleEdit}
               onToggle={handleToggle}
@@ -175,7 +137,7 @@ export default function App() {
           </div>
         </div>
         <Pagination
-          total={todos.length}
+          total={total}
           pageSize={PAGE_SIZE}
           currentPage={page}
           onPageChange={handlePageChange}
