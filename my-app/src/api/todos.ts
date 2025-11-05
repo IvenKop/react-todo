@@ -13,12 +13,6 @@ export type TodosPage = {
   completed_total: number;
 };
 
-function applyFilter(all: Todo[], filter: Filter): Todo[] {
-  if (filter === "all") return all;
-  if (filter === "active") return all.filter((t) => !t.completed);
-  return all.filter((t) => t.completed);
-}
-
 export async function listTodos(
   filter: Filter = "all",
   page = 1,
@@ -26,15 +20,14 @@ export async function listTodos(
 ): Promise<TodosPage> {
   if (!BASE) {
     const all = getTodos();
-    const filtered = applyFilter(all, filter);
     const start = (page - 1) * limit;
-    const items = filtered.slice(start, start + limit);
+    const items = all.slice(start, start + limit);
     const active_total = all.filter((t) => !t.completed).length;
     const completed_total = all.length - active_total;
 
     return {
       items,
-      total: filtered.length,
+      total: all.length,
       page,
       limit,
       active_total,

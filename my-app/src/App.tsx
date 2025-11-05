@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { Filter } from "./types";
 import Header from "./components/Header";
 import TaskInput from "./components/TaskInput";
@@ -13,31 +14,22 @@ import {
   getFilter as loadFilter,
   saveFilter as persistFilter,
 } from "./api/todos";
+import { normalize } from "./utils/strings";
 
 const FIRST_PAGE = 1;
 const PAGE_SIZE = 5;
 
-function readPageFromURL(): number {
-  const sp = new URLSearchParams(window.location.search);
-  const p = Number(sp.get("page") || String(FIRST_PAGE));
-  return Number.isFinite(p) && p >= FIRST_PAGE ? p : FIRST_PAGE;
-}
-
-function writePageToURL(nextPage: number) {
-  const url = new URL(window.location.href);
-  url.searchParams.set("page", String(nextPage));
-  window.history.replaceState({}, "", url);
-}
-
 export default function App() {
   const toast = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
 
-  const [filter, setFilter] = useState<Filter>(() => loadFilter());
-  const [page, setPage] = useState<number>(() => readPageFromURL());
+  const pageParam = Number(searchParams.get("page") ?? String(FIRST_PAGE));
+  const page =
+    Number.isFinite(pageParam) && pageParam >= FIRST_PAGE
+      ? pageParam
+      : FIRST_PAGE;
 
-  useEffect(() => {
-    writePageToURL(page);
-  }, [page]);
+  const filter = loadFilter();
 
   const {
     todos,
@@ -57,13 +49,12 @@ export default function App() {
 
   const handleAdd = useCallback(
     async (text: string) => {
-      const cleaned = text.trim().replace(/\s+/g, " ");
+      const cleaned = normalize(text);
       if (!cleaned) return;
       await add(cleaned);
-      setPage(FIRST_PAGE);
-      writePageToURL(FIRST_PAGE);
+      setSearchParams({ page: String(FIRST_PAGE) }, { replace: true });
     },
-    [add],
+    [add, setSearchParams],
   );
 
   const handleDelete = useCallback(
@@ -75,7 +66,7 @@ export default function App() {
 
   const handleEdit = useCallback(
     async (id: string, text: string) => {
-      const cleaned = text.trim();
+      const cleaned = normalize(text);
       if (!cleaned) return;
       await edit(id, cleaned);
     },
@@ -97,17 +88,20 @@ export default function App() {
     await clearCompleted();
   }, [clearCompleted]);
 
-  const handlePageChange = useCallback((next: number) => {
-    setPage(next);
-    writePageToURL(next);
-  }, []);
+  const handlePageChange = useCallback(
+    (next: number) => {
+      setSearchParams({ page: String(next) }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
-  const handleSetFilter = useCallback((f: Filter) => {
-    setFilter(f);
-    persistFilter(f);
-    setPage(FIRST_PAGE);
-    writePageToURL(FIRST_PAGE);
-  }, []);
+  const handleSetFilter = useCallback(
+    (f: Filter) => {
+      persistFilter(f);
+      setSearchParams({ page: String(FIRST_PAGE) }, { replace: true });
+    },
+    [setSearchParams],
+  );
 
   return (
     <div className="min-h-screen">
