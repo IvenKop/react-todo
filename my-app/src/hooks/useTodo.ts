@@ -4,7 +4,7 @@ import { socket } from "../realtime/socket";
 import { EV } from "../realtime/events";
 import { useTranslation } from "react-i18next";
 import { useDispatch, useSelector } from "react-redux";
-import { todosActions, selectTodosState } from "../store/todosSlice";
+import { todosActions, selectCounters, selectCounts, selectTodosItems, selectTotalItemsCount, selectError, selectIsLoading } from "../store/todosSlice";
 import type { AppDispatch } from "../store/store";
 
 type ToastApi = { show: (text: string, type?: "success" | "error" | "info") => void };
@@ -20,17 +20,20 @@ export function useTodos(opts: UseTodosOpts) {
   const { toast, filter, page, pageSize } = opts;
   const { t } = useTranslation();
   const dispatch = useDispatch<AppDispatch>();
-  const state = useSelector(selectTodosState);
 
-  const { items, total, loading, error, active_total, completed_total, counters } = state;
+  const items = useSelector(selectTodosItems);
+  const total = useSelector(selectTotalItemsCount);
+  const counts = useSelector(selectCounts);
+  const loading = useSelector(selectIsLoading);
+  const error = useSelector(selectError);
+  const counters = useSelector(selectCounters);
 
   useEffect(() => {
     dispatch(todosActions.fetchTodosRequest({ filter, page, limit: pageSize }));
   }, [dispatch, filter, page, pageSize]);
 
   useEffect(() => {
-    const invalidate = () =>
-      dispatch(todosActions.fetchTodosRequest({ filter, page, limit: pageSize }));
+    const invalidate = () => dispatch(todosActions.fetchTodosRequest({ filter, page, limit: pageSize }));
     socket.on(EV.todos.invalidate, invalidate);
     socket.on(EV.todo.created, invalidate);
     socket.on(EV.todo.updated, invalidate);
@@ -68,9 +71,7 @@ export function useTodos(opts: UseTodosOpts) {
     async (id: string) => {
       const current = items.find((t) => t.id === id);
       if (!current) return;
-      dispatch(
-        todosActions.updateTodoRequest({ id, patch: { completed: !current.completed } })
-      );
+      dispatch(todosActions.updateTodoRequest({ id, patch: { completed: !current.completed } }));
     },
     [dispatch, items]
   );
@@ -96,17 +97,10 @@ export function useTodos(opts: UseTodosOpts) {
   }, [dispatch]);
 
   const toggleAll = useCallback(async () => {
-    const totalCount = active_total + completed_total;
-    if (totalCount === 0) return;
-    const allCompleted = active_total === 0;
+    if (counts.total === 0) return;
+    const allCompleted = counts.active === 0;
     dispatch(todosActions.updateTodosBulkRequest({ patch: { completed: !allCompleted } }));
-  }, [dispatch, active_total, completed_total]);
-
-  const counts = {
-    total: active_total + completed_total,
-    active: active_total,
-    completed: completed_total,
-  };
+  }, [dispatch, counts]);
 
   return {
     todos: items as Todo[],

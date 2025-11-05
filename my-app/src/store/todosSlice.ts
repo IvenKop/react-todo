@@ -1,5 +1,5 @@
 import type { PayloadAction } from "@reduxjs/toolkit";
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, createSelector } from "@reduxjs/toolkit";
 import type { Todo, Filter } from "../types";
 import type { TodosPage } from "../api/todos";
 
@@ -62,7 +62,6 @@ const todosSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
-
     addTodoRequest(state, _action: PayloadAction<{ text: string }>) {
       state.loading = true;
       state.error = null;
@@ -75,7 +74,6 @@ const todosSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
-
     updateTodoRequest(
       state,
       _action: PayloadAction<{ id: string; patch: Partial<Pick<Todo, "text" | "completed">> }>
@@ -91,7 +89,6 @@ const todosSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
-
     deleteTodoRequest(state, _action: PayloadAction<{ id: string }>) {
       state.loading = true;
       state.error = null;
@@ -104,7 +101,6 @@ const todosSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
-
     clearCompletedRequest(state) {
       state.loading = true;
       state.error = null;
@@ -117,7 +113,6 @@ const todosSlice = createSlice({
       state.loading = false;
       state.error = action.payload;
     },
-
     updateTodosBulkRequest(
       state,
       _action: PayloadAction<{ patch: Partial<Pick<Todo, "text" | "completed">>; ids?: string[] }>
@@ -140,3 +135,14 @@ export const todosActions = todosSlice.actions;
 export const todosReducer = todosSlice.reducer;
 
 export const selectTodosState = (s: { todos: TodosState }) => s.todos;
+
+export const selectTodosItems = createSelector(selectTodosState, s => s.items);
+export const selectTotalItemsCount = createSelector(selectTodosState, s => s.total);
+export const selectIsLoading = createSelector(selectTodosState, s => s.loading);
+export const selectError = createSelector(selectTodosState, s => s.error);
+export const selectCounters = createSelector(selectTodosState, s => s.counters);
+export const selectCounts = createSelector(selectTodosState, s => ({
+  total: s.active_total + s.completed_total,
+  active: s.active_total,
+  completed: s.completed_total,
+}));
