@@ -1,6 +1,7 @@
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useAuth } from "../hooks/useAuth";
 import { useTranslation } from "react-i18next";
+import AboutDialog from "./AboutDialog";
 
 export default function Header() {
   const { isAuthed, logout } = useAuth();
@@ -39,6 +40,7 @@ export default function Header() {
           )}
           <span className="mx-[4px] hidden h-[24px] w-[1px] bg-[#e1e1e1] sm:block" />
           <LanguageSwitcher />
+          <AboutDialog />
         </div>
       </nav>
       <h1 className="mt-[96px] text-center text-[80px] font-[200] leading-[1] text-[rgb(184,63,69)]">
