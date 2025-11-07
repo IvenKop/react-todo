@@ -15,6 +15,7 @@ import {
   saveFilter as persistFilter,
 } from "./api/todos";
 import { normalize } from "./utils/strings";
+import TaskStatsChart from "./components/TaskStatsChart";
 
 const FIRST_PAGE = 1;
 const PAGE_SIZE = 5;
@@ -142,6 +143,13 @@ export default function App() {
           currentPage={page}
           onPageChange={handlePageChange}
         />
+        {hasAnyTasks && (
+          <TaskStatsChart
+            total={counts.total}
+            active={counts.active}
+            completed={counts.completed}
+          />
+        )}
       </main>
       <Footer />
       <ToastContainer messages={toast.messages} />
