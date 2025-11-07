@@ -2,10 +2,13 @@ import LanguageSwitcher from "./LanguageSwitcher";
 import { useAuth } from "../hooks/useAuth";
 import { useTranslation } from "react-i18next";
 import AboutDialog from "./AboutDialog";
+import { Link, useLocation } from "react-router-dom";
 
 export default function Header() {
   const { isAuthed, logout } = useAuth();
   const { t } = useTranslation();
+  const location = useLocation();
+  const is3DActive = location.pathname === "/3d-report";
 
   return (
     <header>
@@ -38,6 +41,29 @@ export default function Header() {
               </span>
             </button>
           )}
+
+          {isAuthed && (
+            <Link
+              to="/3d-report"
+              className={[
+                "inline-flex",
+                "h-[36px]",
+                "items-center",
+                "justify-center",
+                "rounded-[18px]",
+                "px-[10px]",
+                "text-[13px]",
+                "transition-all",
+                "duration-[150ms]",
+                is3DActive
+                  ? "bg-[#b83f45] text-white shadow-[0_2px_8px_rgba(184,63,69,0.35)]"
+                  : "text-[#1f2937] hover:bg-[#f6f6f6]",
+              ].join(" ")}
+            >
+              3D View
+            </Link>
+          )}
+
           <span className="mx-[4px] hidden h-[24px] w-[1px] bg-[#e1e1e1] sm:block" />
           <LanguageSwitcher />
           <AboutDialog />
