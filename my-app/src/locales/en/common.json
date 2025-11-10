@@ -24,5 +24,25 @@
     "doubleClick": "Double-click to edit a todo",
     "createdBy": "Created by the Devico Solution",
     "partOf": "part of {{brand}}"
+  },
+  "stats": {
+    "title": "Task statistics",
+    "summary": "{{completed}} of {{total}} tasks completed",
+    "details": "Active: {{active}} \u2022 Completed: {{completed}}",
+    "activeLabel": "Active",
+    "completedLabel": "Completed"
+  },
+  "threeD": {
+    "title": "3D Task Space",
+    "description": "Visual overview of your tasks mapped into a 3D-inspired scene powered by Autodesk Platform Services.",
+    "tooltip": {
+      "active": "Active task",
+      "completed": "Completed task"
+    },
+    "legend": {
+      "active": "Active tasks",
+      "completed": "Completed tasks"
+    },
+    "counts": "Total: {{total}} \u2022 Active: {{active}} \u2022 Completed: {{completed}}"
   }
 }
