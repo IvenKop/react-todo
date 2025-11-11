@@ -1,4 +1,5 @@
 import { PieChart, Pie, Cell, Tooltip } from "recharts";
+import { useTranslation } from "react-i18next";
 
 type TaskStatsChartProps = {
   total: number;
@@ -8,12 +9,13 @@ type TaskStatsChartProps = {
 
 export default function TaskStatsChart(props: TaskStatsChartProps) {
   const { total, active, completed } = props;
+  const { t } = useTranslation();
 
   if (!total) return null;
 
   const data = [
-    { name: "Active", value: active },
-    { name: "Completed", value: completed },
+    { key: "active", value: active },
+    { key: "completed", value: completed },
   ];
 
   const colors = ["#f97316", "#b83f45"];
@@ -51,7 +53,7 @@ export default function TaskStatsChart(props: TaskStatsChartProps) {
               color: "#9b9b9b",
             }}
           >
-            Task statistics
+            {t("stats.title")}
           </div>
           <div
             style={{
@@ -61,10 +63,10 @@ export default function TaskStatsChart(props: TaskStatsChartProps) {
               lineHeight: "22px",
             }}
           >
-            {completed} of {total} tasks completed
+            {t("stats.summary", { completed, total })}
           </div>
           <div style={{ fontSize: "12px", color: "#9b9b9b" }}>
-            Active: {active} • Completed: {completed}
+            {t("stats.details", { active, completed })}
           </div>
         </div>
 
@@ -88,7 +90,7 @@ export default function TaskStatsChart(props: TaskStatsChartProps) {
               strokeWidth={1}
             >
               {data.map((entry, index) => (
-                <Cell key={entry.name} fill={colors[index]} />
+                <Cell key={entry.key} fill={colors[index]} />
               ))}
             </Pie>
             <Tooltip
@@ -100,7 +102,14 @@ export default function TaskStatsChart(props: TaskStatsChartProps) {
                 fontSize: "11px",
                 padding: "4px 8px",
               }}
-              formatter={(value, name) => [`${value}`, String(name)]}
+              formatter={(value, name) => {
+                const key = String(name);
+                const label =
+                  key === "active"
+                    ? t("stats.activeLabel")
+                    : t("stats.completedLabel");
+                return [`${value}`, label];
+              }}
             />
           </PieChart>
         </div>

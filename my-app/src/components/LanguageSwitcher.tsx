@@ -17,7 +17,7 @@ export default function LanguageSwitcher() {
     <Select.Root value={value} onValueChange={onChange}>
       <Select.Trigger
         aria-label="Change language"
-        className="inline-flex h-[36px] items-center gap-[8px] rounded-[18px] px-[12px] text-[14px] text-[#1f2937] transition-all duration-[150ms] hover:bg-[#f6f6f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b83f45]/30 active:scale-[1.01]"
+        className="inline-flex h-[36px] cursor-pointer items-center gap-[8px] rounded-[18px] px-[12px] text-[14px] text-[#1f2937] transition-all duration-[150ms] hover:bg-[#f6f6f6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#b83f45]/30 active:scale-[1.01]"
       >
         <svg
           width="18"

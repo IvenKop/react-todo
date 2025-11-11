@@ -26,5 +26,25 @@
     "doubleClick": "Двойной клик — редактировать задачу",
     "createdBy": "Создано командой Devico Solution",
     "partOf": "часть {{brand}}"
+  },
+  "stats": {
+    "title": "Статистика задач",
+    "summary": "Выполнено {{completed}} из {{total}} задач",
+    "details": "Активные: {{active}} \u2022 Выполненные: {{completed}}",
+    "activeLabel": "Активные",
+    "completedLabel": "Выполненные"
+  },
+  "threeD": {
+    "title": "3D пространство задач",
+    "description": "Визуальный обзор задач в 3D-сцене на основе Autodesk Platform Services.",
+    "tooltip": {
+      "active": "Активная задача",
+      "completed": "Выполненная задача"
+    },
+    "legend": {
+      "active": "Активные задачи",
+      "completed": "Выполненные задачи"
+    },
+    "counts": "Всего: {{total}} \u2022 Активные: {{active}} \u2022 Выполненные: {{completed}}"
   }
 }
