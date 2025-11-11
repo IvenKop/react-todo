@@ -1,10 +1,18 @@
-import { useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef, useState } from "react";
 import type { Todo, Filter } from "../types";
 import { socket } from "../realtime/socket";
 import { EV } from "../realtime/events";
 import { useTranslation } from "react-i18next";
 import { useDispatch, useSelector } from "react-redux";
-import { todosActions, selectCounters, selectCounts, selectTodosItems, selectTotalItemsCount, selectError, selectIsLoading } from "../store/todosSlice";
+import {
+  todosActions,
+  selectCounters,
+  selectCounts,
+  selectTodosItems,
+  selectTotalItemsCount,
+  selectError,
+  selectIsLoading,
+} from "../store/todosSlice";
 import type { AppDispatch } from "../store/store";
 
 type ToastApi = { show: (text: string, type?: "success" | "error" | "info") => void };
@@ -14,6 +22,12 @@ type UseTodosOpts = {
   filter: Filter;
   page: number;
   pageSize: number;
+};
+
+type WorkerStats = {
+  total: number;
+  active: number;
+  completed: number;
 };
 
 export function useTodos(opts: UseTodosOpts) {
@@ -27,6 +41,10 @@ export function useTodos(opts: UseTodosOpts) {
   const loading = useSelector(selectIsLoading);
   const error = useSelector(selectError);
   const counters = useSelector(selectCounters);
+
+  const [pageStats, setPageStats] = useState<WorkerStats | null>(null);
+  const workerRef = useRef<Worker | null>(null);
+  const exportResolverRef = useRef<((csv: string) => void) | null>(null);
 
   useEffect(() => {
     dispatch(todosActions.fetchTodosRequest({ filter, page, limit: pageSize }));
@@ -57,6 +75,38 @@ export function useTodos(opts: UseTodosOpts) {
     }
     prev.current = counters;
   }, [counters, t, toast]);
+
+  useEffect(() => {
+    if (typeof Worker === "undefined") return;
+    const worker = new Worker(new URL("../workers/todos.worker.ts", import.meta.url), { type: "module" });
+    workerRef.current = worker;
+
+    const handleMessage = (event: MessageEvent<any>) => {
+      const data = event.data;
+      if (!data || typeof data !== "object") return;
+      if (data.type === "stats" && data.stats) {
+        setPageStats(data.stats as WorkerStats);
+      }
+      if (data.type === "exportCsv" && typeof data.csv === "string" && exportResolverRef.current) {
+        exportResolverRef.current(data.csv);
+        exportResolverRef.current = null;
+      }
+    };
+
+    worker.addEventListener("message", handleMessage);
+
+    return () => {
+      worker.removeEventListener("message", handleMessage);
+      worker.terminate();
+      workerRef.current = null;
+      exportResolverRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!workerRef.current) return;
+    workerRef.current.postMessage({ type: "stats", todos: items });
+  }, [items]);
 
   const add = useCallback(
     async (text: string) => {
@@ -102,6 +152,14 @@ export function useTodos(opts: UseTodosOpts) {
     dispatch(todosActions.updateTodosBulkRequest({ patch: { completed: !allCompleted } }));
   }, [dispatch, counts]);
 
+  const exportCsv = useCallback(() => {
+    if (!workerRef.current) return Promise.resolve("");
+    return new Promise<string>((resolve) => {
+      exportResolverRef.current = resolve;
+      workerRef.current?.postMessage({ type: "exportCsv", todos: items });
+    });
+  }, [items]);
+
   return {
     todos: items as Todo[],
     total,
@@ -114,5 +172,7 @@ export function useTodos(opts: UseTodosOpts) {
     remove,
     clearCompleted,
     toggleAll,
+    pageStats,
+    exportCsv,
   };
 }
